@@ -27,11 +27,9 @@ func (h *Handler) GetTimeline(w http.ResponseWriter, r *http.Request) {
 	case "recommended":
 		rows, err = h.DB.QueryContext(r.Context(), `
 			SELECT p.id, p.user_id, p.content, p.is_repost, p.original_post_id, p.created_at
-			FROM posts p
-			LEFT JOIN likes l ON l.post_id = p.id AND l.created_at > NOW() - INTERVAL 24 HOUR
-			WHERE p.parent_post_id IS NULL
-			GROUP BY p.id, p.user_id, p.content, p.is_repost, p.original_post_id, p.created_at
-			ORDER BY COUNT(l.post_id) DESC, p.created_at DESC, p.id DESC
+			FROM recommended_posts r
+			JOIN posts p ON p.id = r.post_id
+			ORDER BY r.recent_likes DESC, r.post_created_at DESC, r.post_id DESC
 			LIMIT ? OFFSET ?
 		`, perPage, offset)
 	default: // "following"
@@ -64,12 +62,14 @@ func (h *Handler) GetTimeline(w http.ResponseWriter, r *http.Request) {
 		rawPosts = append(rawPosts, p)
 	}
 
-	posts := make([]any, 0, len(rawPosts))
+	postIDs := make([]int64, 0, len(rawPosts))
 	for _, rp := range rawPosts {
-		p, err := h.fetchPost(r, rp.id, myID)
-		if err == nil {
-			posts = append(posts, p)
-		}
+		postIDs = append(postIDs, rp.id)
+	}
+	posts, err := h.fetchPosts(r, postIDs, myID)
+	if err != nil {
+		h.respondError(w, http.StatusInternalServerError, "server error")
+		return
 	}
 
 	var total int
@@ -161,12 +161,10 @@ func (h *Handler) GetUserPosts(w http.ResponseWriter, r *http.Request) {
 		ids = append(ids, id)
 	}
 
-	posts := make([]any, 0, len(ids))
-	for _, id := range ids {
-		p, err := h.fetchPost(r, id, viewerID)
-		if err == nil {
-			posts = append(posts, p)
-		}
+	posts, err := h.fetchPosts(r, ids, viewerID)
+	if err != nil {
+		h.respondError(w, http.StatusInternalServerError, "server error")
+		return
 	}
 
 	var total int
