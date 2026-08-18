@@ -101,3 +101,13 @@ variable "db_private_net_allow_cidr" {
   type        = string
   default     = "192.168.1.0/24"
 }
+
+########################################
+# モニタリングスイート (シンプル監視)
+########################################
+
+variable "healthz_check_delay_loop" {
+  description = "/healthz シンプル監視のチェック間隔 (秒)。60-3600 の範囲。"
+  type        = number
+  default     = 60
+}
