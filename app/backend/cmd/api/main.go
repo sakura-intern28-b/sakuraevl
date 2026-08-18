@@ -1,17 +1,43 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"strings"
+	"syscall"
+	"time"
 
 	appdb "sakuravel/internal/db"
 	"sakuravel/internal/handler"
 	"sakuravel/internal/middleware"
 	"sakuravel/internal/realtime"
+	"sakuravel/internal/telemetry"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	// トレースの送信先（さくらのモニタリングスイート）を初期化する
+	shutdownTracer, err := telemetry.Init(ctx)
+	if err != nil {
+		log.Printf("tracing disabled: %v", err)
+	}
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := shutdownTracer(shutdownCtx); err != nil {
+			log.Printf("tracer shutdown: %v", err)
+		}
+	}()
+
 	db := appdb.New()
 	defer db.Close()
 
@@ -25,18 +51,62 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	// CORS ミドルウェア
-	mux.Handle("/", corsMiddleware(routes(h, auth)))
+	// CORS → OpenTelemetry 計測 → ルーティング の順で通す。
+	// otelhttp が各リクエストの所要時間をスパンとして記録する。
+	mux.Handle("/", corsMiddleware(
+		otelhttp.NewHandler(
+			traceRoute(routes(h, auth)),
+			"http.server",
+			otelhttp.WithFilter(shouldTrace),
+		),
+	))
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
+
+	srv := &http.Server{Addr: ":" + port, Handler: mux}
+
+	go func() {
+		<-ctx.Done()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			log.Printf("server shutdown: %v", err)
+		}
+	}()
+
 	log.Printf("starting server on :%s", port)
-	log.Fatal(http.ListenAndServe(":"+port, mux))
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Fatal(err)
+	}
 }
 
-func routes(h *handler.Handler, auth *middleware.Auth) http.Handler {
+// traceRoute はマッチしたルートパターン（例: "GET /posts/{id}"）を
+// スパン名と http.route 属性に反映させる。
+// otelhttp はルーティング前に動くため、パターンはここで解決する。
+func traceRoute(mux *http.ServeMux) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, pattern := mux.Handler(r); pattern != "" {
+			span := trace.SpanFromContext(r.Context())
+			span.SetName(pattern)
+			span.SetAttributes(semconv.HTTPRoute(pattern))
+		}
+		mux.ServeHTTP(w, r)
+	})
+}
+
+// shouldTrace は計測対象のリクエストを絞り込む。
+// SSE は接続が張られ続けるため所要時間の指標にならず、除外する。
+func shouldTrace(r *http.Request) bool {
+	if r.Method == http.MethodOptions {
+		return false
+	}
+	return !strings.HasSuffix(r.URL.Path, "/stream")
+}
+
+func routes(h *handler.Handler, auth *middleware.Auth) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	// 認証

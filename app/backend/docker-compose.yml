@@ -7,6 +7,14 @@ services:
     environment:
       - DATABASE_URL=sakuravel:password@tcp(db:3306)/sakuravel?parseTime=true&charset=utf8mb4
       - PORT=8080
+      # トレース送信先。ホスト側で動く sacloud-otel-collector の OTLP/HTTP 受信口。
+      # 未設定ならトレースを送信しない
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
+      - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-sakuravel-api}
+      - DEPLOY_ENV=${DEPLOY_ENV:-development}
+    # コンテナからホスト側（Collector）へ到達するための名前解決
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy
