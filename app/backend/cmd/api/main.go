@@ -14,7 +14,7 @@ import (
 	"sakuravel/internal/handler"
 	"sakuravel/internal/middleware"
 	"sakuravel/internal/realtime"
-	// "sakuravel/internal/telemetry"
+	"sakuravel/internal/telemetry"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
@@ -99,8 +99,13 @@ func traceRoute(mux *http.ServeMux) http.Handler {
 
 // shouldTrace は計測対象のリクエストを絞り込む。
 // SSE は接続が張られ続けるため所要時間の指標にならず、除外する。
+// /healthz はシンプル監視からの高頻度な疎通確認であり、エンドポイントの
+// 応答時間トレースとしては無意味なノイズになるため除外する。
 func shouldTrace(r *http.Request) bool {
 	if r.Method == http.MethodOptions {
+		return false
+	}
+	if r.URL.Path == "/healthz" {
 		return false
 	}
 	return !strings.HasSuffix(r.URL.Path, "/stream")
@@ -108,6 +113,9 @@ func shouldTrace(r *http.Request) bool {
 
 func routes(h *handler.Handler, auth *middleware.Auth) *http.ServeMux {
 	mux := http.NewServeMux()
+
+	// ヘルスチェック（シンプル監視向け）
+	mux.HandleFunc("GET /healthz", h.Healthz)
 
 	// 認証
 	mux.HandleFunc("POST /register", h.Register)

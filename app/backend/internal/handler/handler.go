@@ -20,6 +20,10 @@ type Handler struct {
 	Threads       *realtime.Hub
 }
 
+type healthResponse struct {
+	DB int `json:"db"`
+}
+
 func (h *Handler) respondJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
