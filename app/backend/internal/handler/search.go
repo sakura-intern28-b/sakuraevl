@@ -49,12 +49,10 @@ func (h *Handler) searchPosts(w http.ResponseWriter, r *http.Request, q string, 
 		postIDs = append(postIDs, postID)
 	}
 
-	posts := make([]any, 0, len(postIDs))
-	for _, postID := range postIDs {
-		p, err := h.fetchPost(r, postID, viewerID)
-		if err == nil {
-			posts = append(posts, p)
-		}
+	posts, err := h.fetchPosts(r, postIDs, viewerID)
+	if err != nil {
+		h.respondError(w, http.StatusInternalServerError, "server error")
+		return
 	}
 
 	var total int
