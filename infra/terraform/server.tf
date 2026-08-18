@@ -22,7 +22,10 @@ resource "sakura_server" "docker_host" {
 
   # 共有セグメント接続
   network_interface = [
-    { upstream = "shared" },
+    {
+      upstream         = "shared"
+      packet_filter_id = sakura_packet_filter.web.id
+    },
     { upstream = sakura_vswitch.private_net.id },
   ]
 
@@ -36,5 +39,11 @@ resource "sakura_server" "docker_host" {
 }
 
 output "server_ip_address" {
-  value = sakura_server.docker_host.ip_address
+  description = "サーバーのグローバルIPアドレス (共有セグメント)"
+  value       = sakura_server.docker_host.ip_address
+}
+
+output "server_private_ip_address" {
+  description = "サーバーのプライベートIPアドレス"
+  value       = local.server_private_ip
 }
