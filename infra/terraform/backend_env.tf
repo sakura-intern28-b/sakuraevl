@@ -25,5 +25,7 @@ resource "local_file" "backend_env" {
     SERVER_PUBLIC_IP=${sakura_server.docker_host.ip_address}
     SERVER_PRIVATE_IP=${local.server_private_ip}
     DB_PRIVATE_IP=${local.db_private_ip}
+
+    API_URL=http://${sakura_server.docker_host.ip_address}:8080
   EOT
 }
