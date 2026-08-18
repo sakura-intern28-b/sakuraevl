@@ -19,7 +19,7 @@ resource "sakura_database" "db" {
 
   network_interface = {
     vswitch_id    = sakura_vswitch.private_net.id
-    ip_address    = element(split("/", var.db_private_net_cidr), 0)
+    ip_address    = local.db_private_ip
     netmask       = tonumber(element(split("/", var.db_private_net_cidr), 1))
     gateway       = var.db_private_net_gateway
     source_ranges = [var.db_private_net_allow_cidr]
@@ -35,4 +35,9 @@ resource "sakura_database" "db" {
   monitoring_suite = {
     enabled = true
   }
+}
+
+output "db_ip_address" {
+  description = "データベースアプライアンスのプライベートIPアドレス"
+  value       = local.db_private_ip
 }
