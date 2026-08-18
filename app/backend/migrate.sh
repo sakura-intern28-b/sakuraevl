@@ -17,7 +17,13 @@ client -e "
   );
 "
 
-for f in /migrations/*.sql; do
+set -- /migrations/*.sql
+if [ ! -e "$1" ]; then
+  echo "/migrations に *.sql が見つかりません (マウントが空です)" >&2
+  exit 1
+fi
+
+for f in "$@"; do
   version=$(basename "$f")
   applied=$(client -N -e "SELECT COUNT(*) FROM schema_migrations WHERE version = '${version}'")
 

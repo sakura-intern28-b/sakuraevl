@@ -30,11 +30,15 @@ resource "null_resource" "deploy_app_files" {
     timeout  = "3m"
   }
 
-  # 転送先ディレクトリを ubuntu ユーザーが書き込めるように準備
+  # 転送先ディレクトリを ubuntu ユーザーが書き込めるように準備。
+  # migrations/ は docker compose がバインドマウント先として先に空ディレクトリを
+  # root 所有で作ってしまっているケースがあるため、転送前に作り直しておく。
   provisioner "remote-exec" {
     inline = [
       "sudo mkdir -p ${var.app_remote_dir}",
-      "sudo chown ${var.server_ssh_user}:${var.server_ssh_user} ${var.app_remote_dir}",
+      "sudo rm -rf ${var.app_remote_dir}/migrations",
+      "sudo mkdir -p ${var.app_remote_dir}/migrations",
+      "sudo chown -R ${var.server_ssh_user}:${var.server_ssh_user} ${var.app_remote_dir}",
     ]
   }
 
