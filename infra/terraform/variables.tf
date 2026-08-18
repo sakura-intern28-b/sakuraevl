@@ -50,6 +50,18 @@ variable "server_ssh_public_key_path" {
   default     = ""
 }
 
+variable "server_ssh_user" {
+  description = "サーバーへの SSH 接続で使用するユーザー名 (Ubuntu cloudimg のデフォルトユーザー)"
+  type        = string
+  default     = "ubuntu"
+}
+
+variable "app_remote_dir" {
+  description = "アプリ関連ファイル (.env, compose.reg.yml) を配置するリモートサーバー上のディレクトリ"
+  type        = string
+  default     = "/opt/app"
+}
+
 ########################################
 # データベースアプライアンス
 ########################################

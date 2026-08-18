@@ -36,5 +36,11 @@ resource "sakura_server" "docker_host" {
 }
 
 output "server_ip_address" {
-  value = sakura_server.docker_host.ip_address
+  description = "サーバーのグローバルIPアドレス (共有セグメント)"
+  value       = sakura_server.docker_host.ip_address
+}
+
+output "server_private_ip_address" {
+  description = "サーバーのプライベートIPアドレス"
+  value       = local.server_private_ip
 }
