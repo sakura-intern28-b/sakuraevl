@@ -1,6 +1,6 @@
 services:
   api:
-    image: intern28-hosaka.sakuracr.jp/intern2026-app-backend:latest
+    image: intern28-b.sakuracr.jp/intern2026-app-backend:latest
     platform: linux/amd64
     ports:
       - "8080:8080"
@@ -16,7 +16,7 @@ services:
     restart: on-failure
 
   frontend:
-    image: intern22.sakuracr.jp/intern2026-app-frontend:latest
+    image: intern28-b.sakuracr.jp/intern2026-app-frontend:latest
     platform: linux/amd64
     ports:
       - "3000:3000"
