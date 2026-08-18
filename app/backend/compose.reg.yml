@@ -10,29 +10,7 @@ services:
       # フロントが別オリジンになる場合に指定（未指定だと http://localhost:3000 のみ許可）
       - ALLOWED_ORIGIN=${ALLOWED_ORIGIN}
       # - COOKIE_SECURE=true   # HTTPS 配信時
-    depends_on:
-      db:
-        condition: service_healthy
     restart: on-failure
-
-  db:
-    image: mariadb:10.11
-    command: --event-scheduler=ON
-    environment:
-      MYSQL_DATABASE: sakuravel
-      MYSQL_USER: sakuravel
-      MYSQL_PASSWORD: password
-      MYSQL_ROOT_PASSWORD: password
-    ports:
-      - "3306:3306"
-    volumes:
-      - ./migrations:/docker-entrypoint-initdb.d/
-      - mariadb_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -u sakuravel -ppassword"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
   proxy:
     image: nginx:1.27-alpine
