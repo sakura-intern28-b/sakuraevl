@@ -2,7 +2,8 @@
 # app/backend/.env の自動生成
 ########################################
 # terraform apply のたびに、作成したVM・データベースのIPアドレスを
-# もとに app/backend/.env を上書き生成する。
+# もとに app/backend/.env をローカルに生成する（開発用の控え）。
+# 遠隔サーバーへの配置は deploy.tf の null_resource.deploy_app_files が行う。
 # 手動での編集は次の apply で失われるため注意。
 
 resource "local_file" "backend_env" {
