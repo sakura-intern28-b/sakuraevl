@@ -18,6 +18,7 @@ resource "null_resource" "deploy_app_files_and_setup_container_registry" {
     compose_sha1    = filesha1("${path.module}/../../app/backend/compose.reg.yml")
     migrate_sh_sha1 = filesha1("${path.module}/../../app/backend/migrate.sh")
     migrations_sha1 = sha1(join("", [for f in sort(fileset(local.migrations_dir, "*.sql")) : filesha1("${local.migrations_dir}/${f}")]))
+    nginx_conf_sha1 = filesha1("${path.module}/../../app/backend/nginx/nginx.conf")
     server_id       = sakura_server.docker_host.id
   }
 
@@ -31,13 +32,19 @@ resource "null_resource" "deploy_app_files_and_setup_container_registry" {
   }
 
   # 転送先ディレクトリを ubuntu ユーザーが書き込めるように準備。
-  # migrations/ は docker compose がバインドマウント先として先に空ディレクトリを
-  # root 所有で作ってしまっているケースがあるため、転送前に作り直しておく。
+  # migrations/ や nginx/ は docker compose がバインドマウント先として先に
+  # 空ディレクトリを root 所有で作ってしまっているケースがあるため、
+  # (例: nginx.conf が未転送のまま docker compose up した場合など)
+  # 転送前に作り直しておく。放置すると nginx.conf をファイルとして転送しても
+  # 既存ディレクトリの中に配置されてしまい、コンテナ起動時に
+  # 「ディレクトリをファイルにマウントしようとしている」エラーになる。
   provisioner "remote-exec" {
     inline = [
       "sudo mkdir -p ${var.app_remote_dir}",
       "sudo rm -rf ${var.app_remote_dir}/migrations",
       "sudo mkdir -p ${var.app_remote_dir}/migrations",
+      "sudo rm -rf ${var.app_remote_dir}/nginx",
+      "sudo mkdir -p ${var.app_remote_dir}/nginx",
       "sudo chown -R ${var.server_ssh_user}:${var.server_ssh_user} ${var.app_remote_dir}",
       "docker login -u ${var.cr_username} -p ${var.cr_password} ${var.cr_url}",
     ]
@@ -51,6 +58,11 @@ resource "null_resource" "deploy_app_files_and_setup_container_registry" {
   provisioner "file" {
     source      = "${path.module}/../../app/backend/compose.reg.yml"
     destination = "${var.app_remote_dir}/compose.reg.yml"
+  }
+
+  provisioner "file" {
+    source      = "${path.module}/../../app/backend/nginx/nginx.conf"
+    destination = "${var.app_remote_dir}/nginx/nginx.conf"
   }
 
   # migrate ワンショットrunner が読む migration ファイル一式
