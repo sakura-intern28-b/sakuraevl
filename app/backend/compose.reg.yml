@@ -11,28 +11,26 @@ services:
       - ALLOWED_ORIGIN=${ALLOWED_ORIGIN}
       # - COOKIE_SECURE=true   # HTTPS 配信時
     depends_on:
-      db:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     restart: on-failure
 
-  db:
+  # ワンショットrunner: 外部DB(さくらのクラウド DBアプライアンス)に対して
+  # schema_migrations で未適用のものだけ migrations/*.sql を適用して終了する。
+  # 実体は migrate.sh (infra/terraform から配送)。
+  migrate:
     image: mariadb:10.11
-    command: --event-scheduler=ON
     environment:
-      MYSQL_DATABASE: sakuravel
-      MYSQL_USER: sakuravel
-      MYSQL_PASSWORD: password
-      MYSQL_ROOT_PASSWORD: password
-    ports:
-      - "3306:3306"
+      MYSQL_PWD: ${DB_PASSWORD}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_NAME: ${DB_NAME}
     volumes:
-      - ./migrations:/docker-entrypoint-initdb.d/
-      - mariadb_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -u sakuravel -ppassword"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      - ./migrations:/migrations:ro
+      - ./migrate.sh:/migrate.sh:ro
+    entrypoint: ["sh", "/migrate.sh"]
+    restart: "no"
 
   proxy:
     image: nginx:1.27-alpine

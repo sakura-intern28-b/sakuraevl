@@ -35,6 +35,13 @@ resource "sakura_database" "db" {
   monitoring_suite = {
     enabled = true
   }
+
+  # migrations/003, 004 の CREATE EVENT (recommended_posts の定期更新) を
+  # 動かすために必須。マネージドアプライアンスはデフォルトでONだが、
+  # ドリフト検知・明示化のためコードでも宣言しておく。
+  parameters = {
+    event_scheduler = "ON"
+  }
 }
 
 output "db_ip_address" {
