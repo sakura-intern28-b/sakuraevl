@@ -12,7 +12,7 @@ locals {
   migrations_dir = "${path.module}/../../app/backend/migrations"
 }
 
-resource "null_resource" "deploy_app_files" {
+resource "null_resource" "deploy_app_files_and_setup_container_registry" {
   triggers = {
     env_sha1        = sha1(local_file.backend_env.content)
     compose_sha1    = filesha1("${path.module}/../../app/backend/compose.reg.yml")
@@ -39,6 +39,7 @@ resource "null_resource" "deploy_app_files" {
       "sudo rm -rf ${var.app_remote_dir}/migrations",
       "sudo mkdir -p ${var.app_remote_dir}/migrations",
       "sudo chown -R ${var.server_ssh_user}:${var.server_ssh_user} ${var.app_remote_dir}",
+      "docker login -u ${var.cr_username} -p ${var.cr_password} ${var.cr_url}",
     ]
   }
 
