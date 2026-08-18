@@ -33,7 +33,7 @@ resource "local_file" "backend_env" {
     DB_USERNAME=${var.db_username}
     DB_PASSWORD=${var.db_password}
 
-    API_URL=http://${sakura_server.docker_host.ip_address}/api
+    API_URL=http://${sakura_server.docker_host.ip_address}:8080/api
 
     CR_URL=${var.cr_url}
   EOT
