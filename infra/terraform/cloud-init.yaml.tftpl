@@ -4,10 +4,12 @@ manage_etc_hosts: true
 password: ${password}
 chpasswd:
   expire: false
-ssh_pwauth: true
 %{ if ssh_public_key != "" ~}
+ssh_pwauth: false
 ssh_authorized_keys:
   - ${ssh_public_key}
+%{ else ~}
+ssh_pwauth: true
 %{ endif ~}
 
 package_update: true
