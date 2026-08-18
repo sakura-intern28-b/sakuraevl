@@ -27,11 +27,9 @@ func (h *Handler) GetTimeline(w http.ResponseWriter, r *http.Request) {
 	case "recommended":
 		rows, err = h.DB.QueryContext(r.Context(), `
 			SELECT p.id, p.user_id, p.content, p.is_repost, p.original_post_id, p.created_at
-			FROM posts p
-			LEFT JOIN likes l ON l.post_id = p.id AND l.created_at > NOW() - INTERVAL 24 HOUR
-			WHERE p.parent_post_id IS NULL
-			GROUP BY p.id, p.user_id, p.content, p.is_repost, p.original_post_id, p.created_at
-			ORDER BY COUNT(l.post_id) DESC, p.created_at DESC, p.id DESC
+			FROM recommended_posts r
+			JOIN posts p ON p.id = r.post_id
+			ORDER BY r.recent_likes DESC, r.post_created_at DESC, r.post_id DESC
 			LIMIT ? OFFSET ?
 		`, perPage, offset)
 	default: // "following"

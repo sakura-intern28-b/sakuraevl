@@ -13,6 +13,7 @@ services:
 
   db:
     image: mariadb:10.11
+    command: --event-scheduler=ON
     environment:
       MYSQL_DATABASE: sakuravel
       MYSQL_USER: sakuravel
