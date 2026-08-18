@@ -14,7 +14,7 @@ import (
 	"sakuravel/internal/handler"
 	"sakuravel/internal/middleware"
 	"sakuravel/internal/realtime"
-	"sakuravel/internal/telemetry"
+	// "sakuravel/internal/telemetry"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
