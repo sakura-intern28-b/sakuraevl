@@ -19,7 +19,7 @@ resource "local_file" "backend_env" {
     PORT=8080
 
     # フロントエンドがVMのグローバルIP経由でAPIを叩く場合のCORS許可オリジン
-    ALLOWED_ORIGIN=http://${sakura_server.docker_host.ip_address}:3000
+    # ALLOWED_ORIGIN=http://${sakura_server.docker_host.ip_address}:3000
 
     # 参考: terraform で作成したVM・DBのIPアドレス
     SERVER_PUBLIC_IP=${sakura_server.docker_host.ip_address}
@@ -33,6 +33,8 @@ resource "local_file" "backend_env" {
     DB_USERNAME=${var.db_username}
     DB_PASSWORD=${var.db_password}
 
-    API_URL=http://${sakura_server.docker_host.ip_address}:8080
+    API_URL=http://${sakura_server.docker_host.ip_address}/api
+
+    CR_URL=${var.cr_url}
   EOT
 }

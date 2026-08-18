@@ -62,6 +62,26 @@ variable "app_remote_dir" {
   default     = "/opt/app"
 }
 
+variable "cr_url" {
+  description = "さくらのクラウド コンテナレジストリの URL"
+  type        = string
+  default     = ""
+}
+
+variable "cr_username" {
+  description = "さくらのクラウド コンテナレジストリのユーザー名"
+  type        = string
+  default     = ""
+}
+
+variable "cr_password" {
+  description = "さくらのクラウド コンテナレジストリのパスワード"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+
 ########################################
 # データベースアプライアンス
 ########################################
