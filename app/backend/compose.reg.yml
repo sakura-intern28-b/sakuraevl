@@ -10,7 +10,27 @@ services:
       # フロントが別オリジンになる場合に指定（未指定だと http://localhost:3000 のみ許可）
       - ALLOWED_ORIGIN=${ALLOWED_ORIGIN}
       # - COOKIE_SECURE=true   # HTTPS 配信時
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     restart: on-failure
+
+  # ワンショットrunner: 外部DB(さくらのクラウド DBアプライアンス)に対して
+  # schema_migrations で未適用のものだけ migrations/*.sql を適用して終了する。
+  # 実体は migrate.sh (infra/terraform から配送)。
+  migrate:
+    image: mariadb:10.11
+    environment:
+      MYSQL_PWD: ${DB_PASSWORD}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_NAME: ${DB_NAME}
+    volumes:
+      - ./migrations:/migrations:ro
+      - ./migrate.sh:/migrate.sh:ro
+    entrypoint: ["sh", "/migrate.sh"]
+    restart: "no"
 
   proxy:
     image: nginx:1.27-alpine
