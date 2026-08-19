@@ -145,6 +145,47 @@ variable "app_domain" {
 }
 
 ########################################
+# sacloud-otel-collector (モニタリングスイート連携)
+########################################
+# トークンを secret.auto.tfvars に設定すると、cloud-init がVM作成時に
+# Collector をインストールし、トレース(OTLP:4318)とnginxアクセスログの
+# 転送をセットアップする。トークン未設定なら何もしない。
+# 注意: cloud-init はVM作成時に一度だけ実行されるため、あとからトークンを
+# 設定・変更した場合はVMの再作成 (taint) が必要。
+
+variable "otel_collector_version" {
+  description = "インストールする sacloud-otel-collector のバージョン"
+  type        = string
+  default     = "0.7.6"
+}
+
+variable "monitoring_traces_endpoint" {
+  description = "モニタリングスイートのトレース送信先ID (例 123456789012)"
+  type        = string
+  default     = ""
+}
+
+variable "monitoring_traces_token" {
+  description = "モニタリングスイートのトレース書き込みトークン (trc-*)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "monitoring_logs_endpoint" {
+  description = "モニタリングスイートのログ送信先ID (例 123456789012)"
+  type        = string
+  default     = ""
+}
+
+variable "monitoring_logs_token" {
+  description = "モニタリングスイートのログ書き込みトークン (log-*)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+########################################
 # モニタリングスイート (シンプル監視)
 ########################################
 
