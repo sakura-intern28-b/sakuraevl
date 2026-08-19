@@ -18,8 +18,8 @@ resource "local_file" "backend_env" {
     DATABASE_URL=${var.db_username}:${var.db_password}@tcp(${local.db_private_ip}:${sakura_database.db.network_interface.port})/${var.db_name}?parseTime=true&charset=utf8mb4
     PORT=8080
 
-    # フロントエンドがVMのグローバルIP経由でAPIを叩く場合のCORS許可オリジン
-    # ALLOWED_ORIGIN=http://${sakura_server.docker_host.ip_address}:3000
+    # フロントエンドがAPIを叩く場合のCORS許可オリジン
+    ALLOWED_ORIGIN=https://teamb.intern28.sakuraha.jp
 
     # 参考: terraform で作成したVM・DBのIPアドレス
     SERVER_PUBLIC_IP=${sakura_server.docker_host.ip_address}
@@ -33,7 +33,7 @@ resource "local_file" "backend_env" {
     DB_USERNAME=${var.db_username}
     DB_PASSWORD=${var.db_password}
 
-    API_URL=http://${sakura_server.docker_host.ip_address}:8080/api
+    API_URL=https://teamb.intern28.sakuraha.jp/api
 
     CR_URL=${var.cr_url}
   EOT
