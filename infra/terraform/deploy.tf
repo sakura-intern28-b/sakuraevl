@@ -90,6 +90,16 @@ resource "null_resource" "deploy_app_files_and_setup_container_registry" {
     ]
   }
 
+  # ファイル転送が完了した後に起動する
+  # (compose.reg.yml / .env / migrations が揃っていないと migrate が失敗するため)
+  provisioner "remote-exec" {
+    inline = [
+      "docker compose -f ${var.app_remote_dir}/compose.reg.yml down",
+      "docker compose -f ${var.app_remote_dir}/compose.reg.yml pull",
+      "docker compose -f ${var.app_remote_dir}/compose.reg.yml up -d",
+    ]
+  }
+
   depends_on = [
     sakura_server.docker_host,
     sakura_database.db,

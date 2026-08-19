@@ -6,14 +6,14 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash VARCHAR(255) NOT NULL,
     bio           TEXT,
     created_at    TIMESTAMP    NOT NULL DEFAULT NOW()
-);
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS sessions (
     id         VARCHAR(64)  PRIMARY KEY,
     user_id    BIGINT       NOT NULL,
     created_at TIMESTAMP    NOT NULL DEFAULT NOW(),
     expires_at TIMESTAMP    NOT NULL
-);
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS posts (
     id               BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS posts (
     original_post_id BIGINT,
     parent_post_id   BIGINT      DEFAULT NULL,
     created_at       TIMESTAMP   NOT NULL DEFAULT NOW()
-);
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS follows (
     follower_id BIGINT      NOT NULL,
