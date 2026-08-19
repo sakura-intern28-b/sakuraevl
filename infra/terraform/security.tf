@@ -88,7 +88,15 @@ resource "sakura_packet_filter_rules" "web_rules" {
       allow            = true
       description      = "Allow Return UDP (Dest Port)"
     },
-    # 12. Deny All (最後に配置)
+    # 12. DHCP応答 (共有セグメントのIPアドレス取得)
+    {
+      protocol         = "udp"
+      source_port      = "67"
+      destination_port = "68"
+      allow            = true
+      description      = "Allow DHCP Response"
+    },
+    # 13. Deny All (最後に配置)
     {
       protocol    = "ip"
       allow       = false
