@@ -159,6 +159,19 @@ variable "otel_collector_version" {
   default     = "0.7.6"
 }
 
+variable "monitoring_metrics_endpoint" {
+  description = "モニタリングスイートのメトリクス送信先ID (例 123456789012)"
+  type        = string
+  default     = ""
+}
+
+variable "monitoring_metrics_token" {
+  description = "モニタリングスイートのメトリクス書き込みトークン (met-*)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "monitoring_traces_endpoint" {
   description = "モニタリングスイートのトレース送信先ID (例 123456789012)"
   type        = string

@@ -37,13 +37,15 @@ resource "sakura_server" "docker_host" {
     private_ip_cidr   = var.server_private_net_cidr
 
     # sacloud-otel-collector (トークンが1つでも設定されていればセットアップする)
-    otel_collector_enabled     = var.monitoring_traces_token != "" || var.monitoring_logs_token != ""
-    otel_collector_version     = var.otel_collector_version
-    monitoring_traces_endpoint = var.monitoring_traces_endpoint
-    monitoring_traces_token    = var.monitoring_traces_token
-    monitoring_logs_endpoint   = var.monitoring_logs_endpoint
-    monitoring_logs_token      = var.monitoring_logs_token
-    app_remote_dir             = var.app_remote_dir
+    otel_collector_enabled      = var.monitoring_traces_token != "" || var.monitoring_logs_token != "" || var.monitoring_metrics_token != ""
+    otel_collector_version      = var.otel_collector_version
+    monitoring_metrics_endpoint = var.monitoring_metrics_endpoint
+    monitoring_metrics_token    = var.monitoring_metrics_token
+    monitoring_traces_endpoint  = var.monitoring_traces_endpoint
+    monitoring_traces_token     = var.monitoring_traces_token
+    monitoring_logs_endpoint    = var.monitoring_logs_endpoint
+    monitoring_logs_token       = var.monitoring_logs_token
+    app_remote_dir              = var.app_remote_dir
   })
 }
 
