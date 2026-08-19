@@ -1,0 +1,28 @@
+name: ビルドテスト
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      CR_REGISTRY: intern28-b.sakuracr.jp
+      CR_IMAGE: intern2026-app-backend:latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: ビルドが通るかを確認する
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            -f app/backend/Dockerfile \
+            -t ${{ env.CR_REGISTRY }}/${{ env.CR_IMAGE }} \
+            app/backend

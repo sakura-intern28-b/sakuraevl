@@ -53,7 +53,7 @@ cd app/backend
 ```bash
 docker login intern28-b.sakuracr.jp
 cd app/backend
-REGISTRY_URL=intern28-b.sakuracr.jp ./scripts/build-variants.sh
+CR_URL=intern28-b.sakuracr.jp ./scripts/build-variants.sh
 ```
 
 `baseline` と `optimized` の両方が push される。片方だけなら
@@ -61,7 +61,7 @@ REGISTRY_URL=intern28-b.sakuracr.jp ./scripts/build-variants.sh
 
 ### 3-2b. GitHub Actions から push する場合
 
-`perf/baseline-app` を push したうえで、Actions の **Auto Push** ワークフローを
+`perf/baseline-app` を push したうえで、Actions の **Image Auto Push** ワークフローを
 手動実行（`workflow_dispatch`）する。
 
 - `ref`: `perf/baseline-app`
@@ -114,10 +114,17 @@ TraceQL 例:
 DBに残ったままなので、`baseline` に切り替えても「当時そのままの遅さ」には
 ならない。アプリ側のN+1解消ぶんの差が見える、という比較になる。
 
+デプロイ先の `compose.reg.yml` は外部DB（さくらのクラウド DBアプライアンス）を
+使い、`migrate.sh` が `schema_migrations` を見て未適用のものだけを流す。
+コンテナを作り直してもスキーマは残るため、`switch-variant.sh` は
+DBに一切触れない。
+
 ### DBも含めて当時の状態で測りたい場合
 
-`compose.baseline-db.yml` のような上書きファイルを用意し、`001_init.sql` だけを
-流すようにしてボリュームごと作り直す。**データは消える**。
+DBもコンテナで動かす `compose.reg.direct.yml` を使い、`001_init.sql` だけを
+初期化スクリプトとして流すようボリュームごと作り直す。**データは消える。**
+（`docker-compose.yml` は `build: .` でローカルビルドするため、
+イメージのタグ切り替えには使えない。）
 
 ```yaml
 # compose.baseline-db.yml
@@ -130,11 +137,18 @@ services:
 
 ```bash
 cd app/backend
-docker compose -f compose.reg.yml down --volumes
-docker compose -f compose.reg.yml -f compose.baseline-db.yml up -d
+export COMPOSE_FILE=compose.reg.direct.yml
+
+docker compose -f compose.reg.direct.yml down --volumes
+docker compose -f compose.reg.direct.yml -f compose.baseline-db.yml up -d
 ./scripts/switch-variant.sh baseline
 # seed/ のダミーデータを投入してから計測する
 ```
 
-計測後は `down --volumes` してから通常の `compose.reg.yml` で起動し直すと、
-`002〜004` を含む本来のスキーマに戻る。
+計測後は `down --volumes` して通常どおり `compose.reg.direct.yml` だけで
+起動し直せば、`002〜004` を含む本来のスキーマに戻る。
+
+デプロイ先のように外部DBを使う構成では、ボリュームを消す手が使えない。
+`002〜004` が作ったインデックス・テーブルを手で落とし、
+`schema_migrations` から該当行を削除してから測る必要がある（**本番データに
+影響するため推奨しない**）。

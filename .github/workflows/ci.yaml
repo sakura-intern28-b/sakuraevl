@@ -1,4 +1,4 @@
-name: Auto Push
+name: Image Auto Push
 
 on:
   push:

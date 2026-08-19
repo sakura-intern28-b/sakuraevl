@@ -10,14 +10,14 @@
 #
 # 使い方:
 #   docker login <レジストリのホスト名>
-#   REGISTRY_URL=intern28-b.sakuracr.jp ./scripts/build-variants.sh
-#   REGISTRY_URL=... ./scripts/build-variants.sh baseline   # 片方だけ
+#   CR_URL=intern28-b.sakuracr.jp ./scripts/build-variants.sh
+#   CR_URL=... ./scripts/build-variants.sh baseline   # 片方だけ
 set -euo pipefail
 
 REPO_ROOT="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
 IMAGE_NAME="${IMAGE_NAME:-intern2026-app-backend}"
 
-: "${REGISTRY_URL:?REGISTRY_URL を指定してください (例: REGISTRY_URL=intern28-b.sakuracr.jp)}"
+: "${CR_URL:?CR_URL を指定してください (例: CR_URL=intern28-b.sakuracr.jp)}"
 
 # baseline を焼くためのブランチ。scripts/make-baseline-branch.sh が作る。
 BASELINE_REF="${BASELINE_REF:-perf/baseline-app}"
@@ -50,13 +50,13 @@ build_from_ref() {
 
   docker buildx build \
     --platform linux/amd64 \
-    -t "${REGISTRY_URL}/${IMAGE_NAME}:${tag}" \
-    -t "${REGISTRY_URL}/${IMAGE_NAME}:${tag}-${sha}" \
+    -t "${CR_URL}/${IMAGE_NAME}:${tag}" \
+    -t "${CR_URL}/${IMAGE_NAME}:${tag}-${sha}" \
     --push \
     "$WORKTREE/app/backend"
 
   cleanup
-  echo "==> push 完了: ${REGISTRY_URL}/${IMAGE_NAME}:${tag} , :${tag}-${sha}"
+  echo "==> push 完了: ${CR_URL}/${IMAGE_NAME}:${tag} , :${tag}-${sha}"
 }
 
 for t in "${targets[@]}"; do

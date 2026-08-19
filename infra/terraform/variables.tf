@@ -62,6 +62,26 @@ variable "app_remote_dir" {
   default     = "/opt/app"
 }
 
+variable "cr_url" {
+  description = "さくらのクラウド コンテナレジストリの URL"
+  type        = string
+  default     = ""
+}
+
+variable "cr_username" {
+  description = "さくらのクラウド コンテナレジストリのユーザー名"
+  type        = string
+  default     = ""
+}
+
+variable "cr_password" {
+  description = "さくらのクラウド コンテナレジストリのパスワード"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+
 ########################################
 # データベースアプライアンス
 ########################################
@@ -100,4 +120,44 @@ variable "db_private_net_allow_cidr" {
   description = "データベースアプライアンスへのアクセスを許可するネットワークアドレスの CIDR"
   type        = string
   default     = "192.168.1.0/24"
+}
+
+########################################
+# モニタリングスイート (シンプル監視)
+########################################
+
+variable "healthz_check_delay_loop" {
+  description = "/healthz シンプル監視のチェック間隔 (秒)。60-3600 の範囲。"
+  type        = number
+  default     = 60
+}
+
+########################################
+# トレース (OpenTelemetry)
+########################################
+
+variable "otel_exporter_otlp_traces_endpoint" {
+  description = <<-EOT
+    api コンテナがトレースを送信する OTLP/HTTP の受信口。
+    ホスト側で動く sacloud-otel-collector を指す。
+    空文字にするとトレース送信を無効化できる。
+  EOT
+  type        = string
+  default     = "http://host.docker.internal:4318/v1/traces"
+}
+
+variable "otel_service_name" {
+  description = "トレースの service.name"
+  type        = string
+  default     = "sakuravel-api"
+}
+
+variable "backend_image_tag" {
+  description = <<-EOT
+    起動する backend イメージの既定タグ。
+    サーバー上で app/backend/scripts/switch-variant.sh を使うと
+    .env.variant が優先されるため、性能比較中の切り替えは上書きされない。
+  EOT
+  type        = string
+  default     = "latest"
 }

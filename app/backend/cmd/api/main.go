@@ -99,8 +99,13 @@ func traceRoute(mux *http.ServeMux) http.Handler {
 
 // shouldTrace は計測対象のリクエストを絞り込む。
 // SSE は接続が張られ続けるため所要時間の指標にならず、除外する。
+// /healthz はシンプル監視からの高頻度な疎通確認であり、エンドポイントの
+// 応答時間トレースとしては無意味なノイズになるため除外する。
 func shouldTrace(r *http.Request) bool {
 	if r.Method == http.MethodOptions {
+		return false
+	}
+	if r.URL.Path == "/healthz" {
 		return false
 	}
 	return !strings.HasSuffix(r.URL.Path, "/stream")
@@ -109,9 +114,19 @@ func shouldTrace(r *http.Request) bool {
 func routes(h *handler.Handler, auth *middleware.Auth) *http.ServeMux {
 	mux := http.NewServeMux()
 
+	// ヘルスチェック（シンプル監視向け）
+	mux.HandleFunc("GET /healthz", h.Healthz)
+
+	// ログイン用のレートリミッター（1秒間に1回、最大バースト3回）
+	loginLimiter := middleware.NewRateLimiter(1, 3)
+	// 検索用のレートリミッター（1秒間に2回、最大バースト5回）
+	searchLimiter := middleware.NewRateLimiter(2, 5)
+	// アクション（投稿・いいね等）用のレートリミッター（1秒間に1回、最大バースト3回）
+	actionLimiter := middleware.NewRateLimiter(1, 3)
+
 	// 認証
-	mux.HandleFunc("POST /register", h.Register)
-	mux.HandleFunc("POST /login", h.Login)
+	mux.Handle("POST /register", loginLimiter.Limit(http.HandlerFunc(h.Register)))
+	mux.Handle("POST /login", loginLimiter.Limit(http.HandlerFunc(h.Login)))
 	mux.Handle("POST /logout", auth.Required(http.HandlerFunc(h.Logout)))
 
 	// 自分のプロフィール
@@ -125,32 +140,32 @@ func routes(h *handler.Handler, auth *middleware.Auth) *http.ServeMux {
 	mux.Handle("PUT /profile", auth.Required(http.HandlerFunc(h.UpdateProfile)))
 	mux.Handle("GET /users/{user_id}/followers", auth.Optional(http.HandlerFunc(h.GetFollowers)))
 	mux.Handle("GET /users/{user_id}/following", auth.Optional(http.HandlerFunc(h.GetFollowing)))
-	mux.Handle("POST /users/{user_id}/follow", auth.Required(http.HandlerFunc(h.Follow)))
+	mux.Handle("POST /users/{user_id}/follow", actionLimiter.Limit(auth.Required(http.HandlerFunc(h.Follow))))
 	mux.Handle("DELETE /users/{user_id}/follow", auth.Required(http.HandlerFunc(h.Unfollow)))
 
 	// 投稿
 	mux.Handle("GET /posts", auth.Required(http.HandlerFunc(h.GetTimeline)))
-	mux.Handle("POST /posts", auth.Required(http.HandlerFunc(h.CreatePost)))
+	mux.Handle("POST /posts", actionLimiter.Limit(auth.Required(http.HandlerFunc(h.CreatePost))))
 	mux.Handle("GET /posts/{id}", auth.Optional(http.HandlerFunc(h.GetPost)))
 	mux.Handle("GET /users/{user_id}/posts", auth.Optional(http.HandlerFunc(h.GetUserPosts)))
 	mux.Handle("DELETE /posts/{id}", auth.Required(http.HandlerFunc(h.DeletePost)))
 
 	// 返信（スレッド）
-	mux.Handle("POST /replies", auth.Required(http.HandlerFunc(h.CreateReply)))
+	mux.Handle("POST /replies", actionLimiter.Limit(auth.Required(http.HandlerFunc(h.CreateReply))))
 	mux.Handle("GET /posts/{id}/thread", auth.Optional(http.HandlerFunc(h.GetThread)))
 	mux.Handle("GET /posts/{id}/thread/stream", auth.Optional(http.HandlerFunc(h.ThreadStream)))
 
 	// いいね
 	mux.HandleFunc("GET /posts/{id}/likes", h.GetLikes)
-	mux.Handle("POST /likes", auth.Required(http.HandlerFunc(h.Like)))
+	mux.Handle("POST /likes", actionLimiter.Limit(auth.Required(http.HandlerFunc(h.Like))))
 	mux.Handle("DELETE /likes/{post_id}", auth.Required(http.HandlerFunc(h.Unlike)))
 
 	// リポスト
-	mux.Handle("POST /reposts", auth.Required(http.HandlerFunc(h.Repost)))
+	mux.Handle("POST /reposts", actionLimiter.Limit(auth.Required(http.HandlerFunc(h.Repost))))
 	mux.Handle("DELETE /reposts/{post_id}", auth.Required(http.HandlerFunc(h.UnRepost)))
 
 	// 検索
-	mux.HandleFunc("GET /search", h.Search)
+	mux.Handle("GET /search", searchLimiter.Limit(http.HandlerFunc(h.Search)))
 
 	// 通知
 	mux.Handle("GET /notifications", auth.Required(http.HandlerFunc(h.GetNotifications)))
