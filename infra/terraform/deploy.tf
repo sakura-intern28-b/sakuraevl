@@ -17,6 +17,7 @@ resource "null_resource" "deploy_app_files_and_setup_container_registry" {
     env_sha1        = sha1(local_file.backend_env.content)
     compose_sha1    = filesha1("${path.module}/../../app/backend/compose.reg.yml")
     migrate_sh_sha1 = filesha1("${path.module}/../../app/backend/migrate.sh")
+    init_ssl_sha1   = filesha1("${path.module}/../../app/backend/init-ssl.sh")
     migrations_sha1 = sha1(join("", [for f in sort(fileset(local.migrations_dir, "*.sql")) : filesha1("${local.migrations_dir}/${f}")]))
     nginx_conf_sha1 = filesha1("${path.module}/../../app/backend/nginx/nginx.conf")
     server_id       = sakura_server.docker_host.id
@@ -58,6 +59,11 @@ resource "null_resource" "deploy_app_files_and_setup_container_registry" {
   provisioner "file" {
     source      = "${path.module}/../../app/backend/compose.reg.yml"
     destination = "${var.app_remote_dir}/compose.reg.yml"
+  }
+
+  provisioner "file" {
+    source      = "${path.module}/../../app/backend/init-ssl.sh"
+    destination = "${var.app_remote_dir}/init-ssl.sh"
   }
 
   provisioner "file" {
