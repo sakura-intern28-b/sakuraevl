@@ -177,8 +177,10 @@ func corsMiddleware(next http.Handler) http.Handler {
 	if allowedOrigin == "" {
 		allowedOrigin = "http://localhost:3000"
 	}
+	domainName := os.Getenv("domain_name")
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+		w.Header().Set("Access-Control-Allow-Credentials", "http://"+domainName+":8080/")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")

@@ -81,6 +81,12 @@ variable "cr_password" {
   sensitive   = true
 }
 
+variable "domain_name" {
+  description = "さくらのクラウド DNS に登録するドメイン名"
+  type        = string
+  default     = ""
+}
+
 
 ########################################
 # データベースアプライアンス
