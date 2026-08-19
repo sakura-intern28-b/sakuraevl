@@ -1,6 +1,8 @@
 services:
   api:
-    image: intern28-b.sakuracr.jp/intern2026-app-backend:latest
+    # BACKEND_TAG で焼き分けたイメージを差し替えて性能比較する。
+    # 例: BACKEND_TAG=baseline / BACKEND_TAG=optimized (既定は latest)
+    image: ${REGISTRY_URL:-intern28-b.sakuracr.jp}/intern2026-app-backend:${BACKEND_TAG:-latest}
     platform: linux/amd64
     ports:
       - "8080"
@@ -14,6 +16,9 @@ services:
       - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
       - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-sakuravel-api}
       - DEPLOY_ENV=${DEPLOY_ENV:-production}
+      # どのイメージのトレースかを service.version で区別する。
+      # モニタリングスイート側で service.version ごとに応答時間を比較できる。
+      - OTEL_RESOURCE_ATTRIBUTES=service.version=${BACKEND_TAG:-latest}
       # - COOKIE_SECURE=true   # HTTPS 配信時
     # コンテナからホスト側（Collector）へ到達するための名前解決
     extra_hosts:
@@ -61,7 +66,7 @@ services:
       retries: 3
 
   frontend:
-    image: intern28-b.sakuracr.jp/intern2026-app-frontend:latest
+    image: ${REGISTRY_URL:-intern28-b.sakuracr.jp}/intern2026-app-frontend:${FRONTEND_TAG:-latest}
     platform: linux/amd64
     ports:
       - "3000:3000"

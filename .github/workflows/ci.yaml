@@ -4,17 +4,47 @@ on:
   push:
     branches:
       - main
+  # 性能比較用に、任意のブランチ/コミットを任意のタグで焼くための手動実行。
+  # 例) ref: perf/baseline-app, image_tag: baseline
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: ビルド対象の ref (ブランチ名・タグ・コミットSHA)
+        required: true
+        default: main
+      image_tag:
+        description: 付与するイメージタグ (例 baseline / optimized)
+        required: true
+        default: baseline
 
 jobs:
   build:
     runs-on: ubuntu-latest
     env:
       CR_REGISTRY: intern28-b.sakuracr.jp
-      CR_IMAGE: intern2026-app-backend:latest
+      CR_IMAGE_NAME: intern2026-app-backend
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      # push(main) では latest / optimized / sha-xxxxxxx を、
+      # 手動実行では 指定タグ / 指定タグ-sha を付与する。
+      # コミット単位の sha タグを必ず残すことで、あとから
+      # 「あの時のイメージ」を確実に呼び戻せるようにする。
+      - name: Resolve image tags
+        id: tags
+        run: |
+          short_sha="$(git rev-parse --short HEAD)"
+          image="${CR_REGISTRY}/${CR_IMAGE_NAME}"
+          if [ -n "${{ inputs.image_tag }}" ]; then
+            tag="${{ inputs.image_tag }}"
+            echo "tags=-t ${image}:${tag} -t ${image}:${tag}-${short_sha}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tags=-t ${image}:latest -t ${image}:optimized -t ${image}:sha-${short_sha}" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -31,6 +61,6 @@ jobs:
           docker buildx build \
             --platform linux/amd64 \
             -f app/backend/Dockerfile \
-            -t ${{ env.CR_REGISTRY }}/${{ env.CR_IMAGE }} \
+            ${{ steps.tags.outputs.tags }} \
             --push \
             app/backend

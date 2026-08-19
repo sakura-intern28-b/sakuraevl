@@ -51,7 +51,12 @@ func Init(ctx context.Context) (func(context.Context) error, error) {
 		serviceName = "sakuravel-api"
 	}
 
+	// WithFromEnv により OTEL_RESOURCE_ATTRIBUTES を取り込む。
+	// 性能比較時に service.version=<イメージのタグ> を付けて
+	// 同一サービスの新旧を区別できるようにするため。
+	// 後続の WithAttributes が環境変数より優先される。
 	res, err := resource.New(ctx,
+		resource.WithFromEnv(),
 		resource.WithAttributes(semconv.ServiceName(serviceName)),
 		resource.WithAttributes(deployEnvAttributes()...),
 	)
