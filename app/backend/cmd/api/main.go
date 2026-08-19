@@ -109,9 +109,12 @@ func shouldTrace(r *http.Request) bool {
 func routes(h *handler.Handler, auth *middleware.Auth) *http.ServeMux {
 	mux := http.NewServeMux()
 
+	// ログイン用のレートリミッター（1秒間に1回、最大バースト3回）
+	loginLimiter := middleware.NewRateLimiter(1, 3)
+
 	// 認証
-	mux.HandleFunc("POST /register", h.Register)
-	mux.HandleFunc("POST /login", h.Login)
+	mux.Handle("POST /register", loginLimiter.Limit(http.HandlerFunc(h.Register)))
+	mux.Handle("POST /login", loginLimiter.Limit(http.HandlerFunc(h.Login)))
 	mux.Handle("POST /logout", auth.Required(http.HandlerFunc(h.Logout)))
 
 	// 自分のプロフィール
