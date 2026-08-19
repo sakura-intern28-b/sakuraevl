@@ -1,17 +1,21 @@
 services:
   api:
-    build: .
+    image: ${REGISTRY_URL}/intern2026-app-backend:latest
+    platform: linux/amd64
     # 直接公開せず proxy 経由でのみアクセスさせる
     expose:
       - "8080"
     environment:
-      - DATABASE_URL=sakuravel:password@tcp(db:3306)/sakuravel?parseTime=true&charset=utf8mb4
-      - PORT=8080
+      - DATABASE_URL=${DATABASE_URL}
+      - PORT=${API_PORT}
+      # フロントが別オリジンになる場合に指定（未指定だと http://localhost:3000 のみ許可）
+      - ALLOWED_ORIGIN=${ALLOWED_ORIGIN}
       # トレース送信先。ホスト側で動く sacloud-otel-collector の OTLP/HTTP 受信口。
       # 未設定ならトレースを送信しない
       - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
       - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-sakuravel-api}
-      - DEPLOY_ENV=${DEPLOY_ENV:-development}
+      - DEPLOY_ENV=${DEPLOY_ENV:-production}
+      # - COOKIE_SECURE=true   # HTTPS 配信時
     # コンテナからホスト側（Collector）へ到達するための名前解決
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -26,8 +30,8 @@ services:
     environment:
       MYSQL_DATABASE: sakuravel
       MYSQL_USER: sakuravel
-      MYSQL_PASSWORD: password
-      MYSQL_ROOT_PASSWORD: password
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     # ホストへは公開しない（app-network 内から db:3306 で到達できる）
     expose:
       - "3306"
@@ -35,7 +39,7 @@ services:
       - ./migrations:/docker-entrypoint-initdb.d/
       - mariadb_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -u sakuravel -ppassword"]
+      test: ["CMD-SHELL", "mysqladmin ping -u sakuravel -p$$MYSQL_PASSWORD"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -45,8 +49,8 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/logs:/var/log/nginx
     depends_on:
       - api
@@ -57,12 +61,15 @@ services:
       timeout: 3s
       retries: 3
 
-
   frontend:
-    image: intern28-sasaki.sakuracr.jp/intern2026-app-frontend:latest
+    image: ${REGISTRY_URL}/intern2026-app-frontend:latest
     platform: linux/amd64
     ports:
       - "3000:3000"
+    environment:
+      # ブラウザから直接叩くURL。デプロイ先ではドメイン名やグローバルIPに変更する
+      # （例: http://203.0.113.10:8080）
+      - API_URL=${API_URL}:${API_PORT}
     depends_on:
       - api
     restart: on-failure
