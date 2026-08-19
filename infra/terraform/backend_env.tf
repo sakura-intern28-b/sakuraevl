@@ -19,7 +19,7 @@ resource "local_file" "backend_env" {
     PORT=8080
 
     # フロントエンドがAPIを叩く場合のCORS許可オリジン
-    ALLOWED_ORIGIN=https://teamb.intern28.sakuraha.jp
+    ALLOWED_ORIGIN=https://${var.app_domain}
 
     # 参考: terraform で作成したVM・DBのIPアドレス
     SERVER_PUBLIC_IP=${sakura_server.docker_host.ip_address}
@@ -33,7 +33,8 @@ resource "local_file" "backend_env" {
     DB_USERNAME=${var.db_username}
     DB_PASSWORD=${var.db_password}
 
-    API_URL=https://teamb.intern28.sakuraha.jp/api
+    # ブラウザがAPIを叩くURL (proxy の /api/ 経由)
+    API_URL=https://${var.app_domain}/api
 
     CR_URL=${var.cr_url}
 

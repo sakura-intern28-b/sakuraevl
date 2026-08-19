@@ -123,6 +123,22 @@ variable "db_private_net_allow_cidr" {
 }
 
 ########################################
+# 公開ドメイン
+########################################
+
+variable "app_domain" {
+  description = <<-EOT
+    アプリを公開するドメイン名。backend_env.tf が ALLOWED_ORIGIN / API_URL を
+    ここから導出する。
+    注意: app/backend/nginx/nginx.conf (server_name, 証明書パス) と
+    app/backend/init-ssl.sh にも同じドメインが書かれているため、
+    変更する場合はそちらも合わせて修正すること。
+  EOT
+  type        = string
+  default     = "teamb.intern28.sakuraha.jp"
+}
+
+########################################
 # モニタリングスイート (シンプル監視)
 ########################################
 
