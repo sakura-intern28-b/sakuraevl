@@ -62,6 +62,26 @@ variable "app_remote_dir" {
   default     = "/opt/app"
 }
 
+variable "cr_url" {
+  description = "さくらのクラウド コンテナレジストリの URL"
+  type        = string
+  default     = ""
+}
+
+variable "cr_username" {
+  description = "さくらのクラウド コンテナレジストリのユーザー名"
+  type        = string
+  default     = ""
+}
+
+variable "cr_password" {
+  description = "さくらのクラウド コンテナレジストリのパスワード"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+
 ########################################
 # データベースアプライアンス
 ########################################
@@ -100,4 +120,14 @@ variable "db_private_net_allow_cidr" {
   description = "データベースアプライアンスへのアクセスを許可するネットワークアドレスの CIDR"
   type        = string
   default     = "192.168.1.0/24"
+}
+
+########################################
+# モニタリングスイート (シンプル監視)
+########################################
+
+variable "healthz_check_delay_loop" {
+  description = "/healthz シンプル監視のチェック間隔 (秒)。60-3600 の範囲。"
+  type        = number
+  default     = 60
 }

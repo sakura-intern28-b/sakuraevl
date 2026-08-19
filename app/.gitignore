@@ -6,8 +6,12 @@
 # Icon must end with two \r
 Icon
 
+.env
+
 # Thumbnails
 ._*
+
+.env
 
 # Files that might appear in the root of a volume
 .DocumentRevisions-V100

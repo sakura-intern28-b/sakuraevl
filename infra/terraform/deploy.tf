@@ -1,15 +1,25 @@
 ########################################
-# app/backend/.env と compose.reg.yml をVMへ配置
+# app/backend/.env・compose.reg.yml・migrations・migrate.sh をVMへ配置
 ########################################
-# SSH (パスワード認証) 経由で、生成した .env と compose.reg.yml を
-# サーバー上の var.app_remote_dir (デフォルト /opt/app) へ転送する。
-# .env の内容や compose.reg.yml が変わるたびに再転送される。
+# SSH (パスワード認証) 経由で、アプリの実行に必要なファイル一式を
+# サーバー上の var.app_remote_dir (デフォルト /opt/app) へ転送するだけの役割。
+# 外部DB(さくらのクラウド DBアプライアンス)へのSQL適用は Terraform では行わず、
+# 転送された compose.reg.yml の migrate ワンショットrunner (migrate.sh) が
+# schema_migrations テーブルを見ながら未適用分だけ適用する。
+# 内容が変わるたびに再転送される。
 
-resource "null_resource" "deploy_app_files" {
+locals {
+  migrations_dir = "${path.module}/../../app/backend/migrations"
+}
+
+resource "null_resource" "deploy_app_files_and_setup_container_registry" {
   triggers = {
-    env_sha1     = sha1(local_file.backend_env.content)
-    compose_sha1 = filesha1("${path.module}/../../app/backend/compose.reg.yml")
-    server_id    = sakura_server.docker_host.id
+    env_sha1        = sha1(local_file.backend_env.content)
+    compose_sha1    = filesha1("${path.module}/../../app/backend/compose.reg.yml")
+    migrate_sh_sha1 = filesha1("${path.module}/../../app/backend/migrate.sh")
+    migrations_sha1 = sha1(join("", [for f in sort(fileset(local.migrations_dir, "*.sql")) : filesha1("${local.migrations_dir}/${f}")]))
+    nginx_conf_sha1 = filesha1("${path.module}/../../app/backend/nginx/nginx.conf")
+    server_id       = sakura_server.docker_host.id
   }
 
   connection {
@@ -21,11 +31,22 @@ resource "null_resource" "deploy_app_files" {
     timeout  = "3m"
   }
 
-  # 転送先ディレクトリを ubuntu ユーザーが書き込めるように準備
+  # 転送先ディレクトリを ubuntu ユーザーが書き込めるように準備。
+  # migrations/ や nginx/ は docker compose がバインドマウント先として先に
+  # 空ディレクトリを root 所有で作ってしまっているケースがあるため、
+  # (例: nginx.conf が未転送のまま docker compose up した場合など)
+  # 転送前に作り直しておく。放置すると nginx.conf をファイルとして転送しても
+  # 既存ディレクトリの中に配置されてしまい、コンテナ起動時に
+  # 「ディレクトリをファイルにマウントしようとしている」エラーになる。
   provisioner "remote-exec" {
     inline = [
       "sudo mkdir -p ${var.app_remote_dir}",
-      "sudo chown ${var.server_ssh_user}:${var.server_ssh_user} ${var.app_remote_dir}",
+      "sudo rm -rf ${var.app_remote_dir}/migrations",
+      "sudo mkdir -p ${var.app_remote_dir}/migrations",
+      "sudo rm -rf ${var.app_remote_dir}/nginx",
+      "sudo mkdir -p ${var.app_remote_dir}/nginx",
+      "sudo chown -R ${var.server_ssh_user}:${var.server_ssh_user} ${var.app_remote_dir}",
+      "docker login -u ${var.cr_username} -p ${var.cr_password} ${var.cr_url}",
     ]
   }
 
@@ -37,6 +58,23 @@ resource "null_resource" "deploy_app_files" {
   provisioner "file" {
     source      = "${path.module}/../../app/backend/compose.reg.yml"
     destination = "${var.app_remote_dir}/compose.reg.yml"
+  }
+
+  provisioner "file" {
+    source      = "${path.module}/../../app/backend/nginx/nginx.conf"
+    destination = "${var.app_remote_dir}/nginx/nginx.conf"
+  }
+
+  # migrate ワンショットrunner が読む migration ファイル一式
+  provisioner "file" {
+    source      = "${local.migrations_dir}/"
+    destination = "${var.app_remote_dir}/migrations"
+  }
+
+  # migrate ワンショットrunner の実体スクリプト
+  provisioner "file" {
+    source      = "${path.module}/../../app/backend/migrate.sh"
+    destination = "${var.app_remote_dir}/migrate.sh"
   }
 
   # .env は DB パスワードを含むため転送後にパーミッションを絞る
