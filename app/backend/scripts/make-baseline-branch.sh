@@ -38,6 +38,7 @@ if [ -n "$(git status --porcelain)" ]; then
 fi
 
 ORIG_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+SOURCE_SHA="$(git rev-parse --short "$SOURCE_REF")"
 restore() { git checkout --quiet "$ORIG_BRANCH"; }
 trap restore EXIT
 
@@ -55,4 +56,4 @@ git commit --quiet -m "[perf-compare] 性能比較用: アプリコードを性�
 取り消したイメージを焼くためのブランチ。
 コンテナレジストリの :baseline タグとして push される。"
 
-echo "==> ブランチ ${BRANCH} を $(git rev-parse --short "$SOURCE_REF") から作成しました ($(git rev-parse --short "$BRANCH"))"
+echo "==> ブランチ ${BRANCH} を ${SOURCE_SHA} から作成しました ($(git rev-parse --short "$BRANCH"))"
