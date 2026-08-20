@@ -11,7 +11,7 @@ echo "=== 2. Standaloneモードで初回のSSL証明書を取得します ==="
 docker run -it --rm \
   -v "$(pwd)/certbot/conf:/etc/letsencrypt" \
   -v "$(pwd)/certbot/www:/var/www/certbot" \
-  -p 8080:80 \
+  -p 80:80 \
   certbot/certbot certonly \
   --standalone \
   --non-interactive \

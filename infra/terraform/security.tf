@@ -41,7 +41,14 @@ resource "sakura_packet_filter_rules" "web_rules" {
       allow            = true
       description      = "Allow App Frontend"
     },
-    # 5. Backend API (Port 8080)
+    # 5. HTTPS Proxy (Port 4430)
+    {
+      protocol         = "tcp"
+      destination_port = "4430"
+      allow            = true
+      description      = "Allow HTTPS Proxy"
+    },
+      # 5. Backend API (Port 8080)
     {
       protocol         = "tcp"
       destination_port = "8080"
@@ -53,6 +60,20 @@ resource "sakura_packet_filter_rules" "web_rules" {
       protocol    = "icmp"
       allow       = true
       description = "Allow ICMP"
+    },
+    # 今回IPアドレスはDHCP経由で取得しているので、DHCPパケットを許可しなきゃダメ
+    {
+      protocol         = "udp"
+      destination_port = "68"
+      allow            = true
+      description      = "Allow DHCPv4 client response"
+    },
+    # v6も同じ
+    {
+      protocol         = "udp"
+      destination_port = "546"
+      allow            = true
+      description      = "Allow DHCPv6 client response"
     },
     # 7. Fragment
     {
