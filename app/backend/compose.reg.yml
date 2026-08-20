@@ -16,7 +16,11 @@ services:
       - DEPLOY_ENV=${DEPLOY_ENV:-production}
       # どのイメージのトレースかを service.version で区別する。
       # モニタリングスイート側で service.version ごとに応答時間を比較できる。
+      # イメージに APP_GIT_SHA が焼き込まれている場合、アプリ側で
+      # service.version=<BACKEND_TAG>-<SHA> に合成される (telemetry.go)。
+      # ここでの指定はSHAを持たない古いイメージ向けのフォールバック。
       - OTEL_RESOURCE_ATTRIBUTES=service.version=${BACKEND_TAG:-latest}
+      - BACKEND_TAG=${BACKEND_TAG:-latest}
       # - COOKIE_SECURE=true   # HTTPS 配信時
     # コンテナからホスト側（Collector）へ到達するための名前解決
     extra_hosts:
