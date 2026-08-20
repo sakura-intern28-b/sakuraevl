@@ -19,7 +19,8 @@ resource "local_file" "backend_env" {
     PORT=8080
 
     # フロントエンドがAPIを叩く場合のCORS許可オリジン
-    ALLOWED_ORIGIN=https://teamb.intern28.sakuraha.jp
+    # (compose.reg.yml の proxy が 443 を 4430 として公開しているためポート指定が必要)
+    ALLOWED_ORIGIN=https://teamb.intern28.sakuraha.jp:4430
 
     # 参考: terraform で作成したVM・DBのIPアドレス
     SERVER_PUBLIC_IP=${sakura_server.docker_host.ip_address}
@@ -33,7 +34,7 @@ resource "local_file" "backend_env" {
     DB_USERNAME=${var.db_username}
     DB_PASSWORD=${var.db_password}
 
-    API_URL=https://teamb.intern28.sakuraha.jp/api
+    API_URL=https://teamb.intern28.sakuraha.jp:4430/api
 
     CR_URL=${var.cr_url}
   EOT
