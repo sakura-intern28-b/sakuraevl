@@ -59,6 +59,7 @@ func Init(ctx context.Context) (func(context.Context) error, error) {
 		resource.WithFromEnv(),
 		resource.WithAttributes(semconv.ServiceName(serviceName)),
 		resource.WithAttributes(deployEnvAttributes()...),
+		resource.WithAttributes(serviceVersionAttributes()...),
 	)
 	if err != nil {
 		return noop, fmt.Errorf("create resource: %w", err)
@@ -76,6 +77,24 @@ func Init(ctx context.Context) (func(context.Context) error, error) {
 	))
 
 	return tp.Shutdown, nil
+}
+
+// serviceVersionAttributes は service.version を <タグ>-<コミットSHA> に合成する。
+// タグ (latest / baseline 等) は可変で後から指す実体が変わるため、
+// ビルド時にイメージへ焼き込まれた APP_GIT_SHA を必ず含めることで、
+// トレースをコミット単位で一意に区別できるようにする。
+// APP_GIT_SHA を持たない古いイメージでは何もせず、
+// OTEL_RESOURCE_ATTRIBUTES 由来のタグのみの値にフォールバックする。
+func serviceVersionAttributes() []attribute.KeyValue {
+	sha := strings.TrimSpace(os.Getenv("APP_GIT_SHA"))
+	if sha == "" || sha == "unknown" {
+		return nil
+	}
+	version := sha
+	if tag := strings.TrimSpace(os.Getenv("BACKEND_TAG")); tag != "" {
+		version = tag + "-" + sha
+	}
+	return []attribute.KeyValue{semconv.ServiceVersion(version)}
 }
 
 func deployEnvAttributes() []attribute.KeyValue {

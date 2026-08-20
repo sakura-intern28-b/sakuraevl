@@ -38,6 +38,7 @@ jobs:
         id: tags
         run: |
           short_sha="$(git rev-parse --short HEAD)"
+          echo "short_sha=${short_sha}" >> "$GITHUB_OUTPUT"
           image="${CR_REGISTRY}/${CR_IMAGE_NAME}"
           if [ -n "${{ inputs.image_tag }}" ]; then
             tag="${{ inputs.image_tag }}"
@@ -61,6 +62,7 @@ jobs:
           docker buildx build \
             --platform linux/amd64 \
             -f app/backend/Dockerfile \
+            --build-arg GIT_SHA=${{ steps.tags.outputs.short_sha }} \
             ${{ steps.tags.outputs.tags }} \
             --push \
             app/backend
