@@ -96,6 +96,15 @@ write_files:
               endpoint: 0.0.0.0:4318
 
       processors:
+        # モニタリングスイートのUIはリソース属性のうち既知のもの
+        # (service_name, deployment_environment_name 等) しか表示しないため、
+        # 新旧比較用の service.version をスパン属性へコピーして
+        # スパン属性欄で見られるようにする
+        transform/span-version:
+          trace_statements:
+            - context: span
+              statements:
+                - set(attributes["service.version"], resource.attributes["service.version"])
         resourcedetection:
           detectors: [system]
           system:
@@ -138,6 +147,7 @@ write_files:
 %{ if monitoring_traces_token != "" ~}
           traces:
             receivers: [otlp]
+            processors: [transform/span-version]
             exporters: [sacloud]
 %{ endif ~}
 %{ endif ~}
