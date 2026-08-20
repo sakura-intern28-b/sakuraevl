@@ -54,8 +54,8 @@ services:
     volumes:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
-    # 12時間ごとに証明書の更新をチェック
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    # 12時間ごとに証明書の更新をチェック（Nginx稼働中のため必ずwebroot方式で更新）
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot; sleep 12h & wait $${!}; done;'"
 
   frontend:
     image: ${CR_URL}/intern2026-app-frontend:latest

@@ -41,54 +41,83 @@ resource "sakura_packet_filter_rules" "web_rules" {
       allow            = true
       description      = "Allow App Frontend"
     },
-    # 5. Backend API (Port 8080)
+    # 5. HTTPS Proxy (Port 4430)
+    {
+      protocol         = "tcp"
+      destination_port = "4430"
+      allow            = true
+      description      = "Allow HTTPS Proxy"
+    },
+    # 6. Backend API (Port 8080)
     {
       protocol         = "tcp"
       destination_port = "8080"
       allow            = true
       description      = "Allow App Backend API"
     },
-    # 6. ICMP (Ping)
+    # 7. ICMP (Ping)
     {
       protocol    = "icmp"
       allow       = true
       description = "Allow ICMP"
     },
-    # 7. Fragment
+    # 8. DHCPv4 client response
+    {
+      protocol         = "udp"
+      destination_port = "68"
+      allow            = true
+      description      = "Allow DHCPv4 client response"
+    },
+    # 9. DHCPv6 client response
+    {
+      protocol         = "udp"
+      destination_port = "546"
+      allow            = true
+      description      = "Allow DHCPv6 client response"
+    },
+    # 10. Fragment
     {
       protocol    = "fragment"
       allow       = true
       description = "Allow Fragment"
     },
-    # 8. 戻りパケット (Linux/macOS Ephemeral Ports TCP)
+    # 11. 戻りパケット (Linux/macOS Ephemeral Ports TCP)
     {
       protocol         = "tcp"
       source_port      = "32768-65535"
       allow            = true
       description      = "Allow Return TCP (Source Port)"
     },
-    # 9. 戻りパケット (Linux/macOS Ephemeral Ports UDP)
+    # 12. 戻りパケット (Linux/macOS Ephemeral Ports UDP)
     {
       protocol         = "udp"
       source_port      = "32768-65535"
       allow            = true
       description      = "Allow Return UDP (Source Port)"
     },
-    # 10. 戻りパケット (TCP Ephemeral Destination)
+    # 13. 戻りパケット (TCP Ephemeral Destination)
     {
       protocol         = "tcp"
       destination_port = "32768-65535"
       allow            = true
       description      = "Allow Return TCP (Dest Port)"
     },
-    # 11. 戻りパケット (UDP Ephemeral Destination)
+    # 14. 戻りパケット (UDP Ephemeral Destination)
     {
       protocol         = "udp"
       destination_port = "32768-65535"
       allow            = true
       description      = "Allow Return UDP (Dest Port)"
     },
-    # 12. Deny All (最後に配置)
+    # 15. DHCP応答 (共有セグメントのIPアドレス取得)
+    {
+      protocol         = "udp"
+      source_port      = "67"
+      destination_port = "68"
+      allow            = true
+      description      = "Allow DHCP Response"
+    },
+    # 16. Deny All (最後に配置)
     {
       protocol    = "ip"
       allow       = false

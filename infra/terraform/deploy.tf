@@ -26,8 +26,8 @@ resource "null_resource" "deploy_app_files_and_setup_container_registry" {
   connection {
     type     = "ssh"
     host     = sakura_server.docker_host.ip_address
-    user     = var.server_ssh_user
-    password = var.server_password
+    user        = var.server_ssh_user
+    private_key = file(pathexpand(replace(var.server_ssh_public_key_path, ".pub", "")))
     agent    = false
     timeout  = "3m"
   }
@@ -41,6 +41,7 @@ resource "null_resource" "deploy_app_files_and_setup_container_registry" {
   # 「ディレクトリをファイルにマウントしようとしている」エラーになる。
   provisioner "remote-exec" {
     inline = [
+      "cloud-init status --wait",
       "sudo mkdir -p ${var.app_remote_dir}",
       "sudo rm -rf ${var.app_remote_dir}/migrations",
       "sudo mkdir -p ${var.app_remote_dir}/migrations",
