@@ -21,6 +21,23 @@ variable "sakura_access_token_secret" {
   sensitive = true
 }
 
+variable "tfstate_bucket_name" {
+  description = "Terraform stateを保存する、アカウント・環境ごとに一意なObject Storageバケット名"
+  type        = string
+
+  validation {
+    condition = (
+      length(var.tfstate_bucket_name) >= 3 &&
+      length(var.tfstate_bucket_name) <= 63 &&
+      can(regex("^[a-z0-9][a-z0-9.-]*[a-z0-9]$", var.tfstate_bucket_name)) &&
+      !strcontains(var.tfstate_bucket_name, "..") &&
+      !strcontains(var.tfstate_bucket_name, ".-") &&
+      !strcontains(var.tfstate_bucket_name, "-.")
+    )
+    error_message = "tfstate_bucket_nameは3-63文字の小文字英数字、ドット、ハイフンで指定してください。"
+  }
+}
+
 provider "sakura" {
   token  = var.sakura_access_token
   secret = var.sakura_access_token_secret
@@ -32,7 +49,7 @@ data "sakura_object_storage_site" "tfstate" {
 }
 
 resource "sakura_object_storage_bucket" "tfstate" {
-  name    = "sakuraevl-terraform-state"
+  name    = var.tfstate_bucket_name
   site_id = data.sakura_object_storage_site.tfstate.id
 
   lifecycle {
