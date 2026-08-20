@@ -14,20 +14,11 @@ resource "sakura_disk" "docker_host" {
   source_archive_id = data.sakura_archive.ubuntu.id
 }
 
-resource "sakura_ssh_key" "key" {
-  name       = "${var.server_name}-key"
-  public_key = file(pathexpand(var.server_ssh_public_key_path))
-}
-
 resource "sakura_server" "docker_host" {
   name   = var.server_name
   disks  = [sakura_disk.docker_host.id]
   core   = 1
   memory = 2
-
-  disk_edit_parameter = {
-    ssh_key_ids = [sakura_ssh_key.key.id]
-  }
 
   # 共有セグメント接続
   network_interface = [
