@@ -14,11 +14,20 @@ resource "sakura_disk" "docker_host" {
   source_archive_id = data.sakura_archive.ubuntu.id
 }
 
+resource "sakura_ssh_key" "key" {
+  name       = "${var.server_name}-key"
+  public_key = file(pathexpand(var.server_ssh_public_key_path))
+}
+
 resource "sakura_server" "docker_host" {
   name   = var.server_name
   disks  = [sakura_disk.docker_host.id]
   core   = 1
   memory = 2
+
+  disk_edit_parameter = {
+    ssh_key_ids = [sakura_ssh_key.key.id]
+  }
 
   # 共有セグメント接続
   network_interface = [
@@ -31,10 +40,9 @@ resource "sakura_server" "docker_host" {
 
   # cloud-init user-data
   user_data = templatefile("${path.module}/cloud-init.yaml.tftpl", {
-    hostname          = var.server_name
-    password          = var.server_password
-    ssh_public_key    = var.server_ssh_public_key_path != "" ? file(pathexpand(var.server_ssh_public_key_path)) : ""
-    private_ip_cidr   = var.server_private_net_cidr
+    hostname        = var.server_name
+    ssh_public_key  = file(pathexpand(var.server_ssh_public_key_path))
+    private_ip_cidr = var.server_private_net_cidr
 
     # sacloud-otel-collector (トークンが1つでも設定されていればセットアップする)
     otel_collector_enabled      = var.monitoring_traces_token != "" || var.monitoring_logs_token != "" || var.monitoring_metrics_token != ""

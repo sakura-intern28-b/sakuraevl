@@ -38,12 +38,6 @@ variable "server_private_net_cidr" {
   default     = "192.168.1.40/24"
 }
 
-variable "server_password" {
-  description = "サーバーの初期パスワード (SSH 公開鍵認証を使用する場合でも必要)"
-  type        = string
-  sensitive   = true
-}
-
 variable "server_ssh_public_key_path" {
   description = "サーバーへの SSH 公開鍵認証で使用する公開鍵ファイルのパス"
   type        = string
@@ -79,12 +73,6 @@ variable "cr_password" {
   type        = string
   default     = ""
   sensitive   = true
-}
-
-variable "domain_name" {
-  description = "さくらのクラウド DNS で管理するドメイン名"
-  type        = string
-  default     = ""
 }
 
 
@@ -134,14 +122,48 @@ variable "db_private_net_allow_cidr" {
 
 variable "app_domain" {
   description = <<-EOT
-    アプリを公開するドメイン名。backend_env.tf が ALLOWED_ORIGIN / API_URL を
-    ここから導出する。
-    注意: app/backend/nginx/nginx.conf (server_name, 証明書パス) と
-    app/backend/init-ssl.sh にも同じドメインが書かれているため、
-    変更する場合はそちらも合わせて修正すること。
+    アプリを公開するドメイン名。ポート番号は含めない (例: "example.jp")。
+    空文字にするとサーバーの公開IPアドレスで公開する構成になり、
+    Let's Encrypt の証明書は取得できないため HTTP (app_http_port) で公開される。
+    ドメインを指定した場合は HTTPS (app_https_port) + Let's Encrypt 構成になる。
+    ALLOWED_ORIGIN / API_URL・nginx の server_name と証明書パス・
+    init-ssl.sh の取得対象ドメインは、すべてこの値から自動的に導出される。
   EOT
   type        = string
-  default     = "teamb.intern28.sakuraha.jp"
+  default     = ""
+
+  validation {
+    condition     = !can(regex("[:/]", var.app_domain))
+    error_message = "app_domain にはホスト名のみを指定してください (スキームやポート番号は app_http_port / app_https_port で指定します)。"
+  }
+}
+
+variable "app_http_port" {
+  description = <<-EOT
+    proxy (nginx) の HTTP をホスト側で公開するポート。
+    app_domain が空の場合はこのポートがサービスの公開ポートになる。
+    ドメイン指定時は HTTPS へのリダイレクトと Let's Encrypt の更新用。
+  EOT
+  type        = number
+  default     = 8080
+}
+
+variable "app_https_port" {
+  description = <<-EOT
+    proxy (nginx) の HTTPS をホスト側で公開するポート。
+    app_domain を指定した場合のサービスの公開ポート。
+  EOT
+  type        = number
+  default     = 4430
+}
+
+variable "certbot_email" {
+  description = <<-EOT
+    Let's Encrypt の証明書取得に使うメールアドレス。
+    空の場合は admin@<app_domain> を使用する。app_domain が空なら証明書は取得しない。
+  EOT
+  type        = string
+  default     = ""
 }
 
 ########################################
