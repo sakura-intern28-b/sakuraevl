@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # schema_migrations テーブルで適用済みバージョンを記録し、
 # /migrations 配下の未適用ファイルだけをファイル名昇順で適用する。
 # パスワードは呼び出し側で MYSQL_PWD 環境変数として渡す想定。

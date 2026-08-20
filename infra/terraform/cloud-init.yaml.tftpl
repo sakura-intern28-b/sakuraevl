@@ -155,10 +155,13 @@ runcmd:
   # Collector は専用ユーザー sacloud-otelcol で動くため、グループに読み権限を与える
   - install -m 640 -o root -g sacloud-otelcol /opt/sacloud-otel-collector-config.yaml /etc/sacloud-otel-collector/config.yaml
   # Collector は専用ユーザー sacloud-otelcol で動くため、root 所有で書かれる
-  # nginx のログを ACL で読めるようにする (-d で今後作られるファイルにも継承)
-  - mkdir -p ${app_remote_dir}/nginx/logs
-  - setfacl -R -m u:sacloud-otelcol:rX ${app_remote_dir}/nginx/logs
-  - setfacl -d -m u:sacloud-otelcol:rX ${app_remote_dir}/nginx/logs
+  # nginx のログを ACL で読めるようにする。
+  # terraform 再デプロイ (deploy.tf) が nginx/ を rm -rf で作り直すため、
+  # nginx/logs に直接付けた ACL は消える。消されない ${app_remote_dir} 自体に
+  # default ACL を付け、再生成されるサブディレクトリ・ファイルに継承させる。
+  - mkdir -p ${app_remote_dir}
+  - setfacl -R -m u:sacloud-otelcol:rX ${app_remote_dir}
+  - setfacl -R -d -m u:sacloud-otelcol:rX ${app_remote_dir}
   - systemctl enable sacloud-otel-collector
   - systemctl restart sacloud-otel-collector
 %{ endif ~}
