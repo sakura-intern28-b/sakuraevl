@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# 新規stateで実行（Object Storage準備失敗時はローカルstateを使用）: ./infra/deploy.sh [terraform applyのオプション]
+# 通常実行（ローカルstateは移行せず、Object Storage準備失敗時はローカルstateを使用）: ./infra/deploy.sh [terraform applyのオプション]
 # ローカルstateをS3へ移行して実行: ./infra/deploy.sh --force-state-migration [terraform applyのオプション]
 # --force-state-migrationはS3上の既存stateを上書きする可能性があるため、state移行時だけ使用します。
 
