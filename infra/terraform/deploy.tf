@@ -20,6 +20,7 @@ resource "null_resource" "deploy_app_files_and_setup_container_registry" {
     init_ssl_sha1   = filesha1("${path.module}/../../app/backend/init-ssl.sh")
     migrations_sha1 = sha1(join("", [for f in sort(fileset(local.migrations_dir, "*.sql")) : filesha1("${local.migrations_dir}/${f}")]))
     nginx_conf_sha1 = filesha1("${path.module}/../../app/backend/nginx/nginx.conf")
+    switch_sh_sha1  = filesha1("${path.module}/../../app/backend/scripts/switch-variant.sh")
     server_id       = sakura_server.docker_host.id
   }
 
@@ -51,6 +52,7 @@ resource "null_resource" "deploy_app_files_and_setup_container_registry" {
       "sudo mkdir -p ${var.app_remote_dir}/migrations",
       "sudo rm -rf ${var.app_remote_dir}/nginx",
       "sudo mkdir -p ${var.app_remote_dir}/nginx",
+      "sudo mkdir -p ${var.app_remote_dir}/scripts",
       "sudo chown -R ${var.server_ssh_user}:${var.server_ssh_user} ${var.app_remote_dir}",
       "docker login -u ${var.cr_username} -p ${var.cr_password} ${var.cr_url}",
     ]
@@ -76,6 +78,13 @@ resource "null_resource" "deploy_app_files_and_setup_container_registry" {
     destination = "${var.app_remote_dir}/nginx/nginx.conf"
   }
 
+  # 性能比較用に api コンテナのイメージタグを切り替えるスクリプト。
+  # サーバー上で ./scripts/switch-variant.sh baseline のように使う。
+  provisioner "file" {
+    source      = "${path.module}/../../app/backend/scripts/switch-variant.sh"
+    destination = "${var.app_remote_dir}/scripts/switch-variant.sh"
+  }
+
   # migrate ワンショットrunner が読む migration ファイル一式
   provisioner "file" {
     source      = "${local.migrations_dir}/"
@@ -92,6 +101,7 @@ resource "null_resource" "deploy_app_files_and_setup_container_registry" {
   provisioner "remote-exec" {
     inline = [
       "chmod 600 ${var.app_remote_dir}/.env",
+      "chmod +x ${var.app_remote_dir}/scripts/switch-variant.sh",
     ]
   }
 

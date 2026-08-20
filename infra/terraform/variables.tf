@@ -129,6 +129,22 @@ variable "db_private_net_allow_cidr" {
 }
 
 ########################################
+# 公開ドメイン
+########################################
+
+variable "app_domain" {
+  description = <<-EOT
+    アプリを公開するドメイン名。backend_env.tf が ALLOWED_ORIGIN / API_URL を
+    ここから導出する。
+    注意: app/backend/nginx/nginx.conf (server_name, 証明書パス) と
+    app/backend/init-ssl.sh にも同じドメインが書かれているため、
+    変更する場合はそちらも合わせて修正すること。
+  EOT
+  type        = string
+  default     = "teamb.intern28.sakuraha.jp"
+}
+
+########################################
 # モニタリングスイート (シンプル監視)
 ########################################
 
@@ -136,4 +152,34 @@ variable "healthz_check_delay_loop" {
   description = "/healthz シンプル監視のチェック間隔 (秒)。60-3600 の範囲。"
   type        = number
   default     = 60
+}
+
+########################################
+# トレース (OpenTelemetry)
+########################################
+
+variable "otel_exporter_otlp_traces_endpoint" {
+  description = <<-EOT
+    api コンテナがトレースを送信する OTLP/HTTP の受信口。
+    ホスト側で動く sacloud-otel-collector を指す。
+    空文字にするとトレース送信を無効化できる。
+  EOT
+  type        = string
+  default     = "http://host.docker.internal:4318/v1/traces"
+}
+
+variable "otel_service_name" {
+  description = "トレースの service.name"
+  type        = string
+  default     = "sakuravel-api"
+}
+
+variable "backend_image_tag" {
+  description = <<-EOT
+    起動する backend イメージの既定タグ。
+    サーバー上で app/backend/scripts/switch-variant.sh を使うと
+    .env.variant が優先されるため、性能比較中の切り替えは上書きされない。
+  EOT
+  type        = string
+  default     = "latest"
 }

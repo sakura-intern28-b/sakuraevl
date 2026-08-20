@@ -28,8 +28,9 @@ services:
       MYSQL_USER: sakuravel
       MYSQL_PASSWORD: password
       MYSQL_ROOT_PASSWORD: password
-    ports:
-      - "3306:3306"
+    # ホストへは公開しない（app-network 内から db:3306 で到達できる）
+    expose:
+      - "3306"
     volumes:
       - ./migrations:/docker-entrypoint-initdb.d/
       - mariadb_data:/var/lib/mysql
