@@ -40,9 +40,9 @@ resource "sakura_server" "docker_host" {
 
   # cloud-init user-data
   user_data = templatefile("${path.module}/cloud-init.yaml.tftpl", {
-    hostname          = var.server_name
-    ssh_public_key    = file(pathexpand(var.server_ssh_public_key_path))
-    private_ip_cidr   = var.server_private_net_cidr
+    hostname        = var.server_name
+    ssh_public_key  = file(pathexpand(var.server_ssh_public_key_path))
+    private_ip_cidr = var.server_private_net_cidr
 
     # sacloud-otel-collector (トークンが1つでも設定されていればセットアップする)
     otel_collector_enabled      = var.monitoring_traces_token != "" || var.monitoring_logs_token != "" || var.monitoring_metrics_token != ""

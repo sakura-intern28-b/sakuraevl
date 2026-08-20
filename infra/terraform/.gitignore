@@ -1,0 +1,2 @@
+# terraform が生成する成果物 (nginx.conf など)
+generated/
