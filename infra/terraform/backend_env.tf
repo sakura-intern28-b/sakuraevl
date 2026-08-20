@@ -17,10 +17,12 @@ resource "local_file" "backend_env" {
     # api コンテナがDBアプライアンス(プライベートネットワーク経由)に接続するためのDSN
     DATABASE_URL=${var.db_username}:${var.db_password}@tcp(${local.db_private_ip}:${sakura_database.db.network_interface.port})/${var.db_name}?parseTime=true&charset=utf8mb4
     PORT=8080
+    # compose.reg.yml が api コンテナの PORT に渡す値 (proxy の proxy_pass 先と揃える)
+    API_PORT=8080
 
     # フロントエンドがAPIを叩く場合のCORS許可オリジン
-
-    ALLOWED_ORIGIN=https://${var.app_domain}
+    # (app_domain 未設定時はサーバーの公開IP + app_http_port から導出される)
+    ALLOWED_ORIGIN=${local.app_origin}
 
 
     # 参考: terraform で作成したVM・DBのIPアドレス
@@ -36,7 +38,15 @@ resource "local_file" "backend_env" {
     DB_PASSWORD=${var.db_password}
 
     # ブラウザがAPIを叩くURL (proxy の /api/ 経由)
-    API_URL=https://${var.app_domain}/api
+    API_URL=${local.app_origin}/api
+
+    # 公開ホストとサービスポート (compose.reg.yml の proxy と init-ssl.sh が参照する)
+    APP_DOMAIN=${local.app_domain}
+    APP_HOST=${local.app_host}
+    APP_ORIGIN=${local.app_origin}
+    APP_HTTP_PORT=${var.app_http_port}
+    APP_HTTPS_PORT=${var.app_https_port}
+    CERTBOT_EMAIL=${local.certbot_email}
 
 
     CR_URL=${var.cr_url}

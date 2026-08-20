@@ -1,3 +1,10 @@
+# このファイルは infra/terraform (nginx_conf.tf) がテンプレートとして読み込み、
+# infra/terraform/generated/nginx.conf にレンダリングしてサーバーへ配送します。
+# ドメイン名・証明書パス・公開ポートは terraform の app_domain / app_https_port
+# から自動的に埋め込まれるため、ここに直接ドメインを書かないでください。
+#
+# use_tls = true  … app_domain 指定あり。80 は ACME + HTTPSへのリダイレクト、443 で配信。
+# use_tls = false … app_domain 未設定 (IPアドレス公開)。証明書を持てないため 80 のみで配信。
 
 user  nginx;
 worker_processes  auto;
@@ -41,8 +48,6 @@ http {
         '}';
 
     access_log  /var/log/nginx/access.log  json_logs;
-    #access_log  /var/log/nginx/access.log  main;
-    #access_log /dev/stdout;
 
     sendfile        on;
     #tcp_nopush     on;
@@ -51,17 +56,27 @@ http {
 
     #gzip  on;
 
+%{ if use_tls ~}
+    # ---- HTTP (証明書の取得・更新とHTTPSへのリダイレクト専用) ----
     server {
         listen 80;
-        # server_name teamb.intern28.sakuraha.jp;
+        server_name ${server_name};
 
         # CertbotのACMEチャレンジ用
         location /.well-known/acme-challenge/ {
             root /var/www/certbot;
         }
 
+        # compose の healthcheck (wget http://127.0.0.1/healthz) 用。
+        # HTTPSへのリダイレクトより先に完全一致で返す
+        # (リダイレクトさせるとコンテナ内から 443 へ繋がらず unhealthy になる)。
+        location = /healthz {
+            access_log off;
+            return 200 "ok\n";
+        }
+
         # infra/terraform/monitoring.tf のシンプル監視は
-        # http://<サーバーIP>:80/api/healthz に 200 を期待する。
+        # http://<サーバーIP>:<app_http_port>/api/healthz に 200 を期待する。
         # HTTPSへリダイレクトすると監視が通らないため、ここだけ素通しする。
         location = /api/healthz {
             proxy_pass http://api:8080/healthz;
@@ -71,29 +86,38 @@ http {
             proxy_set_header X-Forwarded-Proto $scheme;
         }
 
-        # Dockerヘルスチェック用 (https経由だと証明書のホスト名検証で失敗するため
-        # リダイレクトさせずここで直接応答する)
-        location = /healthz {
-            return 200 "ok\n";
-            add_header Content-Type text/plain;
-        }
-
         # それ以外はHTTPSへリダイレクト
+        # (公開ポートが443以外の場合はポート番号付きでリダイレクトする)
         location / {
-            return 301 https://$host$request_uri;
+            return 301 https://$host${https_port_suffix}$request_uri;
         }
     }
 
+%{ endif ~}
+    # ---- アプリ本体の配信 ----
     server {
+%{ if use_tls ~}
         listen 443 ssl;
-        # server_name teamb.intern28.sakuraha.jp;
+        server_name ${server_name};
 
-        ssl_certificate /etc/letsencrypt/live/teamb.intern28.sakuraha.jp/fullchain.pem;
-        ssl_certificate_key /etc/letsencrypt/live/teamb.intern28.sakuraha.jp/privkey.pem;
+        ssl_certificate /etc/letsencrypt/live/${cert_domain}/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/${cert_domain}/privkey.pem;
 
         # セキュリティ強化（一般的な設定）
         ssl_protocols TLSv1.2 TLSv1.3;
         ssl_prefer_server_ciphers on;
+%{ else ~}
+        # app_domain 未設定時はIPアドレスでのアクセスになるため、
+        # 証明書を持てない = HTTPのみで配信する。
+        listen 80;
+        server_name ${server_name};
+
+        # compose の healthcheck (wget http://127.0.0.1/healthz) 用
+        location = /healthz {
+            access_log off;
+            return 200 "ok\n";
+        }
+%{ endif ~}
 
         # SSE (GET /notifications/stream, GET /posts/{id}/thread/stream) は
         # バッファリングされると通知がリアルタイムに届かない。

@@ -41,21 +41,21 @@ resource "sakura_packet_filter_rules" "web_rules" {
       allow            = true
       description      = "Allow App Frontend"
     },
-    # 5. HTTPS Proxy (Port 4430)
+    # 5. HTTPS Proxy (var.app_https_port / 既定 4430)
     {
       protocol         = "tcp"
-      destination_port = "4430"
+      destination_port = tostring(var.app_https_port)
       allow            = true
       description      = "Allow HTTPS Proxy"
     },
-      # 5. Backend API (Port 8080)
+    # 6. HTTP Proxy (var.app_http_port / 既定 8080)
     {
       protocol         = "tcp"
-      destination_port = "8080"
+      destination_port = tostring(var.app_http_port)
       allow            = true
-      description      = "Allow App Backend API"
+      description      = "Allow HTTP Proxy"
     },
-    # 6. ICMP (Ping)
+    # 7. ICMP (Ping)
     {
       protocol    = "icmp"
       allow       = true
@@ -81,28 +81,28 @@ resource "sakura_packet_filter_rules" "web_rules" {
       allow       = true
       description = "Allow Fragment"
     },
-    # 8. 戻りパケット (Linux/macOS Ephemeral Ports TCP)
+    # 11. 戻りパケット (Linux/macOS Ephemeral Ports TCP)
     {
-      protocol         = "tcp"
-      source_port      = "32768-65535"
-      allow            = true
-      description      = "Allow Return TCP (Source Port)"
+      protocol    = "tcp"
+      source_port = "32768-65535"
+      allow       = true
+      description = "Allow Return TCP (Source Port)"
     },
-    # 9. 戻りパケット (Linux/macOS Ephemeral Ports UDP)
+    # 12. 戻りパケット (Linux/macOS Ephemeral Ports UDP)
     {
-      protocol         = "udp"
-      source_port      = "32768-65535"
-      allow            = true
-      description      = "Allow Return UDP (Source Port)"
+      protocol    = "udp"
+      source_port = "32768-65535"
+      allow       = true
+      description = "Allow Return UDP (Source Port)"
     },
-    # 10. 戻りパケット (TCP Ephemeral Destination)
+    # 13. 戻りパケット (TCP Ephemeral Destination)
     {
       protocol         = "tcp"
       destination_port = "32768-65535"
       allow            = true
       description      = "Allow Return TCP (Dest Port)"
     },
-    # 11. 戻りパケット (UDP Ephemeral Destination)
+    # 14. 戻りパケット (UDP Ephemeral Destination)
     {
       protocol         = "udp"
       destination_port = "32768-65535"

@@ -19,18 +19,18 @@ resource "null_resource" "deploy_app_files_and_setup_container_registry" {
     migrate_sh_sha1 = filesha1("${path.module}/../../app/backend/migrate.sh")
     init_ssl_sha1   = filesha1("${path.module}/../../app/backend/init-ssl.sh")
     migrations_sha1 = sha1(join("", [for f in sort(fileset(local.migrations_dir, "*.sql")) : filesha1("${local.migrations_dir}/${f}")]))
-    nginx_conf_sha1 = filesha1("${path.module}/../../app/backend/nginx/nginx.conf")
+    nginx_conf_sha1 = sha1(local_file.nginx_conf.content)
     switch_sh_sha1  = filesha1("${path.module}/../../app/backend/scripts/switch-variant.sh")
     server_id       = sakura_server.docker_host.id
   }
 
   connection {
-    type     = "ssh"
-    host     = sakura_server.docker_host.ip_address
-    user     = var.server_ssh_user
-    password = var.server_password
-    agent    = false
-    timeout  = "3m"
+    type        = "ssh"
+    host        = sakura_server.docker_host.ip_address
+    user        = var.server_ssh_user
+    private_key = file(pathexpand(replace(var.server_ssh_public_key_path, ".pub", "")))
+    agent       = false
+    timeout     = "3m"
   }
 
   # 転送先ディレクトリを ubuntu ユーザーが書き込めるように準備。
@@ -54,7 +54,7 @@ resource "null_resource" "deploy_app_files_and_setup_container_registry" {
       "sudo mkdir -p ${var.app_remote_dir}/nginx",
       "sudo mkdir -p ${var.app_remote_dir}/scripts",
       "sudo chown -R ${var.server_ssh_user}:${var.server_ssh_user} ${var.app_remote_dir}",
-      "docker login -u ${var.cr_username} -p ${var.cr_password} ${var.cr_url}",
+      "if [ -n '${var.cr_username}' ]; then docker login -u '${var.cr_username}' -p '${var.cr_password}' '${var.cr_url}'; fi",
     ]
   }
 
@@ -73,8 +73,9 @@ resource "null_resource" "deploy_app_files_and_setup_container_registry" {
     destination = "${var.app_remote_dir}/init-ssl.sh"
   }
 
+  # app_domain / app_https_port から生成した nginx 設定 (nginx_conf.tf)
   provisioner "file" {
-    source      = "${path.module}/../../app/backend/nginx/nginx.conf"
+    source      = local_file.nginx_conf.filename
     destination = "${var.app_remote_dir}/nginx/nginx.conf"
   }
 
@@ -108,16 +109,18 @@ resource "null_resource" "deploy_app_files_and_setup_container_registry" {
   # ファイル転送が完了した後に起動する
   # (compose.reg.yml / .env / migrations が揃っていないと migrate が失敗するため)
   #
-  # nginx(proxy) は起動時に SSL 証明書 (fullchain.pem) を要求するため、
-  # 証明書が未取得のままだと up -d が失敗する。
+  # app_domain を指定した構成では nginx(proxy) が起動時に SSL 証明書
+  # (fullchain.pem) を要求するため、証明書が未取得のままだと up -d が失敗する。
   # そのため証明書ファイルが存在しない場合に限り、先に init-ssl.sh で
   # 初回取得を行う。証明書ファイルが既に存在する場合は
   # Let's Encrypt のレート制限を避けるためスキップする。
+  # app_domain が空 (IPアドレス公開) のときは HTTP のみの nginx 設定が
+  # 配送されるため、証明書の取得自体を行わない。
   provisioner "remote-exec" {
     inline = [
       "docker compose -f ${var.app_remote_dir}/compose.reg.yml down",
       "docker compose -f ${var.app_remote_dir}/compose.reg.yml pull",
-      "if [ ! -f ${var.app_remote_dir}/certbot/conf/live/${var.domain_name}/fullchain.pem ]; then cd ${var.app_remote_dir} && chmod +x init-ssl.sh && ./init-ssl.sh; fi",
+      local.app_use_tls ? "if [ ! -f ${var.app_remote_dir}/certbot/conf/live/${local.app_domain}/fullchain.pem ]; then cd ${var.app_remote_dir} && chmod +x init-ssl.sh && ./init-ssl.sh; fi" : "echo 'app_domain が未設定のため証明書の取得をスキップします (HTTPで公開)'",
       "docker compose -f ${var.app_remote_dir}/compose.reg.yml up -d",
     ]
   }
@@ -126,5 +129,6 @@ resource "null_resource" "deploy_app_files_and_setup_container_registry" {
     sakura_server.docker_host,
     sakura_database.db,
     local_file.backend_env,
+    local_file.nginx_conf,
   ]
 }
