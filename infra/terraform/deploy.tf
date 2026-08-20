@@ -48,7 +48,7 @@ resource "null_resource" "deploy_app_files_and_setup_container_registry" {
       "sudo rm -rf ${var.app_remote_dir}/nginx",
       "sudo mkdir -p ${var.app_remote_dir}/nginx",
       "sudo chown -R ${var.server_ssh_user}:${var.server_ssh_user} ${var.app_remote_dir}",
-      "docker login -u ${var.cr_username} -p ${var.cr_password} ${var.cr_url}",
+      "if [ -n '${var.cr_username}' ]; then docker login -u '${var.cr_username}' -p '${var.cr_password}' '${var.cr_url}'; fi",
     ]
   }
 
