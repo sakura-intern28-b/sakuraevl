@@ -18,7 +18,7 @@ resource "sakura_server" "docker_host" {
   name   = var.server_name
   disks  = [sakura_disk.docker_host.id]
   core   = 1
-  memory = 1
+  memory = 2
 
   # 共有セグメント接続
   network_interface = [
@@ -47,3 +47,5 @@ output "server_private_ip_address" {
   description = "サーバーのプライベートIPアドレス"
   value       = local.server_private_ip
 }
+
+

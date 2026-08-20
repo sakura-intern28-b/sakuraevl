@@ -42,6 +42,11 @@ resource "null_resource" "deploy_app_files_and_setup_container_registry" {
   # 「ディレクトリをファイルにマウントしようとしている」エラーになる。
   provisioner "remote-exec" {
     inline = [
+      # cloud-init の runcmd (Dockerインストール等) はSSH接続可能後も
+      # バックグラウンドで実行され続けているため、destroy直後の初回applyでは
+      # docker コマンドがまだ存在せず失敗することがある。
+      # 完了を待ってから後続のコマンドを実行する。
+      "sudo cloud-init status --wait",
       "sudo mkdir -p ${var.app_remote_dir}",
       "sudo rm -rf ${var.app_remote_dir}/migrations",
       "sudo mkdir -p ${var.app_remote_dir}/migrations",
@@ -102,10 +107,17 @@ resource "null_resource" "deploy_app_files_and_setup_container_registry" {
 
   # ファイル転送が完了した後に起動する
   # (compose.reg.yml / .env / migrations が揃っていないと migrate が失敗するため)
+  #
+  # nginx(proxy) は起動時に SSL 証明書 (fullchain.pem) を要求するため、
+  # 証明書が未取得のままだと up -d が失敗する。
+  # そのため証明書ファイルが存在しない場合に限り、先に init-ssl.sh で
+  # 初回取得を行う。証明書ファイルが既に存在する場合は
+  # Let's Encrypt のレート制限を避けるためスキップする。
   provisioner "remote-exec" {
     inline = [
       "docker compose -f ${var.app_remote_dir}/compose.reg.yml down",
       "docker compose -f ${var.app_remote_dir}/compose.reg.yml pull",
+      "if [ ! -f ${var.app_remote_dir}/certbot/conf/live/${var.domain_name}/fullchain.pem ]; then cd ${var.app_remote_dir} && chmod +x init-ssl.sh && ./init-ssl.sh; fi",
       "docker compose -f ${var.app_remote_dir}/compose.reg.yml up -d",
     ]
   }

@@ -73,8 +73,6 @@ services:
   frontend:
     image: ${CR_URL}/intern2026-app-frontend:${FRONTEND_TAG:-latest}
     platform: linux/amd64
-    ports:
-      - "3000:3000"
     environment:
       # ブラウザから直接叩くURL。デプロイ先ではドメイン名やグローバルIPに変更する
       # （例: http://203.0.113.10:8080）
