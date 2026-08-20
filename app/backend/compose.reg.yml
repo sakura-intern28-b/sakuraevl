@@ -1,13 +1,26 @@
 services:
   api:
-    image: ${CR_URL}/intern2026-app-backend:latest
+    # BACKEND_TAG で焼き分けたイメージを差し替えて性能比較する。
+    # 例: BACKEND_TAG=baseline / BACKEND_TAG=optimized (既定は latest)
+    image: ${CR_URL}/intern2026-app-backend:${BACKEND_TAG:-latest}
     platform: linux/amd64
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - PORT=${API_PORT}
       # フロントが別オリジンになる場合に指定（未指定だと http://localhost:3000 のみ許可）
       - ALLOWED_ORIGIN=${ALLOWED_ORIGIN}
+      # トレース送信先。ホスト側で動く sacloud-otel-collector の OTLP/HTTP 受信口。
+      # 未設定ならトレースを送信しない
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
+      - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-sakuravel-api}
+      - DEPLOY_ENV=${DEPLOY_ENV:-production}
+      # どのイメージのトレースかを service.version で区別する。
+      # モニタリングスイート側で service.version ごとに応答時間を比較できる。
+      - OTEL_RESOURCE_ATTRIBUTES=service.version=${BACKEND_TAG:-latest}
       # - COOKIE_SECURE=true   # HTTPS 配信時
+    # コンテナからホスト側（Collector）へ到達するための名前解決
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -58,10 +71,8 @@ services:
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot; sleep 12h & wait $${!}; done;'"
 
   frontend:
-    image: ${CR_URL}/intern2026-app-frontend:latest
+    image: ${CR_URL}/intern2026-app-frontend:${FRONTEND_TAG:-latest}
     platform: linux/amd64
-    ports:
-      - "3000:3000"
     environment:
       # ブラウザから直接叩くURL。デプロイ先ではドメイン名やグローバルIPに変更する
       # （例: http://203.0.113.10:8080）

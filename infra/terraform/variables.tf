@@ -19,7 +19,7 @@ variable "sakura_access_token_secret" {
 variable "zone" {
   description = "リソースを作成するゾーン。"
   type        = string
-  default     = "tk1a" # 石狩第2ゾーン。tk1a / tk1b / is1a / is1b / is1c から選択
+  default     = "tk1a" # 東京第1ゾーン。tk1a / tk1b / is1a / is1b / is1c から選択
 }
 
 ########################################
@@ -36,12 +36,6 @@ variable "server_private_net_cidr" {
   description = "サーバーが接続するプライベートネットワークの CIDR"
   type        = string
   default     = "192.168.1.40/24"
-}
-
-variable "server_password" {
-  description = "サーバーの初期パスワード (SSH 公開鍵認証を使用する場合でも必要)"
-  type        = string
-  sensitive   = true
 }
 
 variable "server_ssh_public_key_path" {
@@ -79,6 +73,12 @@ variable "cr_password" {
   type        = string
   default     = ""
   sensitive   = true
+}
+
+variable "domain_name" {
+  description = "さくらのクラウド DNS で管理するドメイン名"
+  type        = string
+  default     = ""
 }
 
 
@@ -123,6 +123,76 @@ variable "db_private_net_allow_cidr" {
 }
 
 ########################################
+# 公開ドメイン
+########################################
+
+variable "app_domain" {
+  description = <<-EOT
+    アプリを公開するドメイン名。backend_env.tf が ALLOWED_ORIGIN / API_URL を
+    ここから導出する。
+    注意: app/backend/nginx/nginx.conf (server_name, 証明書パス) と
+    app/backend/init-ssl.sh にも同じドメインが書かれているため、
+    変更する場合はそちらも合わせて修正すること。
+  EOT
+  type        = string
+  default     = "teamb.intern28.sakuraha.jp"
+}
+
+########################################
+# sacloud-otel-collector (モニタリングスイート連携)
+########################################
+# トークンを secret.auto.tfvars に設定すると、cloud-init がVM作成時に
+# Collector をインストールし、トレース(OTLP:4318)とnginxアクセスログの
+# 転送をセットアップする。トークン未設定なら何もしない。
+# 注意: cloud-init はVM作成時に一度だけ実行されるため、あとからトークンを
+# 設定・変更した場合はVMの再作成 (taint) が必要。
+
+variable "otel_collector_version" {
+  description = "インストールする sacloud-otel-collector のバージョン"
+  type        = string
+  default     = "0.7.6"
+}
+
+variable "monitoring_metrics_endpoint" {
+  description = "モニタリングスイートのメトリクス送信先ID (例 123456789012)"
+  type        = string
+  default     = ""
+}
+
+variable "monitoring_metrics_token" {
+  description = "モニタリングスイートのメトリクス書き込みトークン (met-*)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "monitoring_traces_endpoint" {
+  description = "モニタリングスイートのトレース送信先ID (例 123456789012)"
+  type        = string
+  default     = ""
+}
+
+variable "monitoring_traces_token" {
+  description = "モニタリングスイートのトレース書き込みトークン (trc-*)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "monitoring_logs_endpoint" {
+  description = "モニタリングスイートのログ送信先ID (例 123456789012)"
+  type        = string
+  default     = ""
+}
+
+variable "monitoring_logs_token" {
+  description = "モニタリングスイートのログ書き込みトークン (log-*)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+########################################
 # モニタリングスイート (シンプル監視)
 ########################################
 
@@ -130,4 +200,34 @@ variable "healthz_check_delay_loop" {
   description = "/healthz シンプル監視のチェック間隔 (秒)。60-3600 の範囲。"
   type        = number
   default     = 60
+}
+
+########################################
+# トレース (OpenTelemetry)
+########################################
+
+variable "otel_exporter_otlp_traces_endpoint" {
+  description = <<-EOT
+    api コンテナがトレースを送信する OTLP/HTTP の受信口。
+    ホスト側で動く sacloud-otel-collector を指す。
+    空文字にするとトレース送信を無効化できる。
+  EOT
+  type        = string
+  default     = "http://host.docker.internal:4318/v1/traces"
+}
+
+variable "otel_service_name" {
+  description = "トレースの service.name"
+  type        = string
+  default     = "sakuravel-api"
+}
+
+variable "backend_image_tag" {
+  description = <<-EOT
+    起動する backend イメージの既定タグ。
+    サーバー上で app/backend/scripts/switch-variant.sh を使うと
+    .env.variant が優先されるため、性能比較中の切り替えは上書きされない。
+  EOT
+  type        = string
+  default     = "latest"
 }

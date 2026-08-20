@@ -20,6 +20,7 @@ resource "null_resource" "deploy_app_files_and_setup_container_registry" {
     init_ssl_sha1   = filesha1("${path.module}/../../app/backend/init-ssl.sh")
     migrations_sha1 = sha1(join("", [for f in sort(fileset(local.migrations_dir, "*.sql")) : filesha1("${local.migrations_dir}/${f}")]))
     nginx_conf_sha1 = filesha1("${path.module}/../../app/backend/nginx/nginx.conf")
+    switch_sh_sha1  = filesha1("${path.module}/../../app/backend/scripts/switch-variant.sh")
     server_id       = sakura_server.docker_host.id
   }
 
@@ -41,12 +42,17 @@ resource "null_resource" "deploy_app_files_and_setup_container_registry" {
   # 「ディレクトリをファイルにマウントしようとしている」エラーになる。
   provisioner "remote-exec" {
     inline = [
-      "cloud-init status --wait",
+      # cloud-init の runcmd (Dockerインストール等) はSSH接続可能後も
+      # バックグラウンドで実行され続けているため、destroy直後の初回applyでは
+      # docker コマンドがまだ存在せず失敗することがある。
+      # 完了を待ってから後続のコマンドを実行する。
+      "sudo cloud-init status --wait",
       "sudo mkdir -p ${var.app_remote_dir}",
       "sudo rm -rf ${var.app_remote_dir}/migrations",
       "sudo mkdir -p ${var.app_remote_dir}/migrations",
       "sudo rm -rf ${var.app_remote_dir}/nginx",
       "sudo mkdir -p ${var.app_remote_dir}/nginx",
+      "sudo mkdir -p ${var.app_remote_dir}/scripts",
       "sudo chown -R ${var.server_ssh_user}:${var.server_ssh_user} ${var.app_remote_dir}",
       "if [ -n '${var.cr_username}' ]; then docker login -u '${var.cr_username}' -p '${var.cr_password}' '${var.cr_url}'; fi",
     ]
@@ -72,6 +78,13 @@ resource "null_resource" "deploy_app_files_and_setup_container_registry" {
     destination = "${var.app_remote_dir}/nginx/nginx.conf"
   }
 
+  # 性能比較用に api コンテナのイメージタグを切り替えるスクリプト。
+  # サーバー上で ./scripts/switch-variant.sh baseline のように使う。
+  provisioner "file" {
+    source      = "${path.module}/../../app/backend/scripts/switch-variant.sh"
+    destination = "${var.app_remote_dir}/scripts/switch-variant.sh"
+  }
+
   # migrate ワンショットrunner が読む migration ファイル一式
   provisioner "file" {
     source      = "${local.migrations_dir}/"
@@ -88,15 +101,23 @@ resource "null_resource" "deploy_app_files_and_setup_container_registry" {
   provisioner "remote-exec" {
     inline = [
       "chmod 600 ${var.app_remote_dir}/.env",
+      "chmod +x ${var.app_remote_dir}/scripts/switch-variant.sh",
     ]
   }
 
   # ファイル転送が完了した後に起動する
   # (compose.reg.yml / .env / migrations が揃っていないと migrate が失敗するため)
+  #
+  # nginx(proxy) は起動時に SSL 証明書 (fullchain.pem) を要求するため、
+  # 証明書が未取得のままだと up -d が失敗する。
+  # そのため証明書ファイルが存在しない場合に限り、先に init-ssl.sh で
+  # 初回取得を行う。証明書ファイルが既に存在する場合は
+  # Let's Encrypt のレート制限を避けるためスキップする。
   provisioner "remote-exec" {
     inline = [
       "docker compose -f ${var.app_remote_dir}/compose.reg.yml down",
       "docker compose -f ${var.app_remote_dir}/compose.reg.yml pull",
+      "if [ ! -f ${var.app_remote_dir}/certbot/conf/live/${var.domain_name}/fullchain.pem ]; then cd ${var.app_remote_dir} && chmod +x init-ssl.sh && ./init-ssl.sh; fi",
       "docker compose -f ${var.app_remote_dir}/compose.reg.yml up -d",
     ]
   }

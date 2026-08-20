@@ -1,0 +1,15 @@
+# 秘密情報（.env.example のみコミットする）
+.env
+*.env
+.env.*
+!.env.example
+
+# terraform
+*.tfvars
+!*.tfvars.example
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# nginx ログ
+app/backend/nginx/logs/

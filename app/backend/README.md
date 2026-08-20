@@ -246,3 +246,15 @@ docker compose up -d
 ### ダミーデータの投入
 
 ダミーデータの投入手順（データのリセット方法や投入量の変更方法を含む）は [ダミーデータの投入手順](./docs/説明資料/ダミーデータの投入手順.md) を参照してください。
+
+### 性能改善前後の比較
+
+コンテナレジストリのタグ（`baseline` / `optimized`）で api コンテナだけを
+差し替え、モニタリングスイート上でエンドポイント応答時間を比較できます。
+
+```bash
+./scripts/switch-variant.sh baseline     # 改善前のアプリに切り替え
+./scripts/switch-variant.sh optimized    # 改善後のアプリに切り替え
+```
+
+イメージの焼き方や比較の見方は [性能改善前後の比較手順](./docs/perf-compare.md) を参照してください。
