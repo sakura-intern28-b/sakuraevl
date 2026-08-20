@@ -15,6 +15,11 @@ ssh_pwauth: true
 package_update: true
 package_upgrade: true
 
+# setfacl (nginx ログを collector に読ませる ACL 設定) に必要。
+# 最小イメージには入っていないことがあるため明示する。
+packages:
+  - acl
+
 write_files:
   - path: /usr/local/bin/configure-private-nic.sh
     permissions: '0755'
@@ -39,6 +44,9 @@ write_files:
             addresses:
               - ${private_ip_cidr}
       EOF
+
+      # netplan は world-readable な設定ファイルを警告する
+      chmod 600 /etc/netplan/60-private-nic.yaml
 
       netplan apply
 %{ if otel_collector_enabled ~}
@@ -150,7 +158,8 @@ runcmd:
   # sacloud-otel-collector: モニタリングスイートへのトレース/ログ転送
   - wget -qO /tmp/sacloud-otel-collector.deb https://github.com/sacloud/sacloud-otel-collector/releases/download/v${otel_collector_version}/sacloud-otel-collector_${otel_collector_version}_linux_amd64.deb
   - dpkg -i /tmp/sacloud-otel-collector.deb
-  - install -m 600 -o root -g root /opt/sacloud-otel-collector-config.yaml /etc/sacloud-otel-collector/config.yaml
+  # Collector は専用ユーザー sacloud-otelcol で動くため、グループに読み権限を与える
+  - install -m 640 -o root -g sacloud-otelcol /opt/sacloud-otel-collector-config.yaml /etc/sacloud-otel-collector/config.yaml
   # Collector は専用ユーザー sacloud-otelcol で動くため、root 所有で書かれる
   # nginx のログを ACL で読めるようにする (-d で今後作られるファイルにも継承)
   - mkdir -p ${app_remote_dir}/nginx/logs
