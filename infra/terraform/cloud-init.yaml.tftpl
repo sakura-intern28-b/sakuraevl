@@ -41,6 +41,104 @@ write_files:
       EOF
 
       netplan apply
+%{ if otel_collector_enabled ~}
+
+  # sacloud-otel-collector の設定。deb パッケージが置く既定の
+  # config.yaml と衝突しないよう一旦ステージングし、インストール後に
+  # runcmd で /etc/sacloud-otel-collector/config.yaml へ配置する。
+  - path: /opt/sacloud-otel-collector-config.yaml
+    permissions: '0600'
+    content: |
+      receivers:
+%{ if monitoring_metrics_token != "" ~}
+        # VMホスト自体のメトリクス
+        hostmetrics:
+          collection_interval: 10s
+          scrapers:
+            cpu:
+              metrics:
+                system.cpu.utilization:
+                  enabled: true
+            memory:
+              metrics:
+                system.memory.utilization:
+                  enabled: true
+            disk:
+            filesystem:
+              metrics:
+                system.filesystem.utilization:
+                  enabled: true
+            network:
+            paging:
+              metrics:
+                system.paging.utilization:
+                  enabled: true
+%{ endif ~}
+%{ if monitoring_logs_token != "" ~}
+        # nginx (proxy コンテナ) がホストマウントへ書くアクセスログ。
+        # 中身は app/backend/nginx/nginx.conf の log_format json_logs による
+        # JSON文字列で、パースはモニタリングスイート側に任せてそのまま送る。
+        filelog:
+          start_at: end
+          exclude: []
+          include:
+            - ${app_remote_dir}/nginx/logs/access.log
+%{ endif ~}
+        # api コンテナからのトレース (compose の
+        # OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://host.docker.internal:4318/v1/traces)。
+        # 0.0.0.0 で listen するが、パケットフィルタの Deny All により
+        # インターネットからは到達できない (docker ブリッジからのみ)。
+        otlp:
+          protocols:
+            http:
+              endpoint: 0.0.0.0:4318
+
+      processors:
+        resourcedetection:
+          detectors: [system]
+          system:
+            hostname_sources: [os]
+
+      exporters:
+        # journalctl -u sacloud-otel-collector で送信状況を確認できるようにする
+        debug:
+        sacloud:
+%{ if monitoring_metrics_token != "" ~}
+          metrics:
+            endpoint: "${monitoring_metrics_endpoint}"
+            token: "${monitoring_metrics_token}"
+%{ endif ~}
+%{ if monitoring_traces_token != "" ~}
+          traces:
+            endpoint: "${monitoring_traces_endpoint}"
+            token: "${monitoring_traces_token}"
+%{ endif ~}
+%{ if monitoring_logs_token != "" ~}
+          logs:
+            endpoint: "${monitoring_logs_endpoint}"
+            token: "${monitoring_logs_token}"
+%{ endif ~}
+
+      service:
+        pipelines:
+%{ if monitoring_metrics_token != "" ~}
+          metrics:
+            receivers: [hostmetrics]
+            processors: [resourcedetection]
+            exporters: [sacloud, debug]
+%{ endif ~}
+%{ if monitoring_logs_token != "" ~}
+          logs:
+            receivers: [filelog]
+            processors: [resourcedetection]
+            exporters: [sacloud, debug]
+%{ endif ~}
+%{ if monitoring_traces_token != "" ~}
+          traces:
+            receivers: [otlp]
+            exporters: [sacloud]
+%{ endif ~}
+%{ endif ~}
 
 runcmd:
   - /usr/local/bin/configure-private-nic.sh
@@ -48,3 +146,16 @@ runcmd:
   - curl -fsSL https://get.docker.com | sh
   - systemctl enable --now docker
   - usermod -a -G docker ubuntu
+%{ if otel_collector_enabled ~}
+  # sacloud-otel-collector: モニタリングスイートへのトレース/ログ転送
+  - wget -qO /tmp/sacloud-otel-collector.deb https://github.com/sacloud/sacloud-otel-collector/releases/download/v${otel_collector_version}/sacloud-otel-collector_${otel_collector_version}_linux_amd64.deb
+  - dpkg -i /tmp/sacloud-otel-collector.deb
+  - install -m 600 -o root -g root /opt/sacloud-otel-collector-config.yaml /etc/sacloud-otel-collector/config.yaml
+  # Collector は専用ユーザー sacloud-otelcol で動くため、root 所有で書かれる
+  # nginx のログを ACL で読めるようにする (-d で今後作られるファイルにも継承)
+  - mkdir -p ${app_remote_dir}/nginx/logs
+  - setfacl -R -m u:sacloud-otelcol:rX ${app_remote_dir}/nginx/logs
+  - setfacl -d -m u:sacloud-otelcol:rX ${app_remote_dir}/nginx/logs
+  - systemctl enable sacloud-otel-collector
+  - systemctl restart sacloud-otel-collector
+%{ endif ~}
