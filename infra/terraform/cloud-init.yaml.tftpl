@@ -43,6 +43,20 @@ write_files:
       chmod 600 /etc/netplan/60-private-nic.yaml
 
       netplan apply
+
+      # netplan apply は公開NIC (DHCP) も含めてネットワークを再構成するため、
+      # 直後は一時的に名前解決ができなくなる。復帰を待たずに抜けると、
+      # 後続の処理 (docker pull など) が "Could not resolve host" で失敗する。
+      systemd-networkd-wait-online --timeout=60 || true
+
+      i=0
+      while [ "$i" -lt 30 ]; do
+        if getent hosts archive.ubuntu.com >/dev/null 2>&1; then
+          break
+        fi
+        sleep 2
+        i=$((i + 1))
+      done
 %{ if otel_collector_enabled ~}
 
   # sacloud-otel-collector の設定。deb パッケージが置く既定の
@@ -143,14 +157,16 @@ write_files:
 %{ endif ~}
 
 runcmd:
-  - /usr/local/bin/configure-private-nic.sh
-  # Docker EngineとCompose V2インストール
-  - curl -fsSL https://get.docker.com | sh
+  # Docker EngineとCompose V2インストール。
+  # プライベートNICの設定 (netplan apply) より先に行う。逆順にすると
+  # netplan apply 直後のネットワーク再構成中にダウンロードが走り、
+  # 名前解決に失敗してインストールが丸ごとスキップされることがある。
+  - curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors https://get.docker.com | sh
   - systemctl enable --now docker
   - usermod -a -G docker ubuntu
 %{ if otel_collector_enabled ~}
   # sacloud-otel-collector: モニタリングスイートへのトレース/ログ転送
-  - wget -qO /tmp/sacloud-otel-collector.deb https://github.com/sacloud/sacloud-otel-collector/releases/download/v${otel_collector_version}/sacloud-otel-collector_${otel_collector_version}_linux_amd64.deb
+  - wget -q --tries=5 --waitretry=5 --retry-connrefused -O /tmp/sacloud-otel-collector.deb https://github.com/sacloud/sacloud-otel-collector/releases/download/v${otel_collector_version}/sacloud-otel-collector_${otel_collector_version}_linux_amd64.deb
   - dpkg -i /tmp/sacloud-otel-collector.deb
   # Collector は専用ユーザー sacloud-otelcol で動くため、グループに読み権限を与える
   - install -m 640 -o root -g sacloud-otelcol /opt/sacloud-otel-collector-config.yaml /etc/sacloud-otel-collector/config.yaml
@@ -165,3 +181,7 @@ runcmd:
   - systemctl enable sacloud-otel-collector
   - systemctl restart sacloud-otel-collector
 %{ endif ~}
+  # プライベートNIC (DBアプライアンスへの経路) の設定。
+  # netplan apply がネットワークを再構成するため、インターネットを使う処理を
+  # すべて終えてから最後に実行する。
+  - /usr/local/bin/configure-private-nic.sh
