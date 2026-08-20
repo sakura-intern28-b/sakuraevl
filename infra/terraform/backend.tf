@@ -1,6 +1,6 @@
 terraform {
   backend "s3" {
-    bucket = "sakuraevl-terraform-state"
+    # bucketはdeploy.shから-backend-configで指定する
     key    = "sakuraevl/infra/terraform.tfstate"
     region = "jp-east-1"
 
