@@ -8,10 +8,6 @@
 # Object Storage credentials for the Terraform S3 backend
 terraform/s3.credentials
 
-# infra/tfstate の apply が生成する backend 設定 (アクセスキーを含む)
-# ※ *_override.tf は下の Terraform 標準の無視設定でも対象になっている
-terraform/backend_override.tf
-
 # Crash log files
 crash.log
 crash.*.log
