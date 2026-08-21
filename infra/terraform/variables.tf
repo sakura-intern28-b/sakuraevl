@@ -19,22 +19,7 @@ variable "sakura_access_token_secret" {
 variable "zone" {
   description = "リソースを作成するゾーン。"
   type        = string
-  default     = "is1c" # 東京第1ゾーン。tk1a / tk1b / is1a / is1b / is1c から選択
-}
-
-########################################
-# Terraform state (Object Storage)
-########################################
-
-variable "tfstate_bucket_name" {
-  description = <<-EOT
-    Terraform stateを保存するObject Storageバケット名 (アカウント・環境ごとに一意)。
-    実際に使うのはブートストラップ構成 (infra/tfstate) 側で、
-    そこがバケットとアクセスキーを作成し backend_override.tf を生成する。
-    ここでは secret.auto.tfvars を共有するために宣言だけしている。
-  EOT
-  type        = string
-  default     = ""
+  default     = "tk1a" # 東京第1ゾーン。tk1a / tk1b / is1a / is1b / is1c から選択
 }
 
 ########################################
@@ -54,12 +39,7 @@ variable "server_private_net_cidr" {
 }
 
 variable "server_ssh_public_key_path" {
-  description = <<-EOT
-    サーバーへの SSH 公開鍵認証で使用する公開鍵ファイルのパス。
-    秘密鍵は同じパスから ".pub" を除いたパスにある想定
-    (deploy.tf の provisioner がその秘密鍵で接続する)。
-    鍵が無い場合は ssh-keygen -t ed25519 -f ~/.ssh/sakuravel_ed25519 で作成する。
-  EOT
+  description = "サーバーへの SSH 公開鍵認証で使用する公開鍵ファイルのパス"
   type        = string
   default     = ""
 }
@@ -94,6 +74,7 @@ variable "cr_password" {
   default     = ""
   sensitive   = true
 }
+
 
 ########################################
 # データベースアプライアンス
@@ -188,16 +169,55 @@ variable "certbot_email" {
 ########################################
 # sacloud-otel-collector (モニタリングスイート連携)
 ########################################
-# cloud-init がVM作成時に Collector をインストールし、ホストメトリクス・
-# トレース(OTLP:4318)・nginxアクセスログの転送をセットアップする。
-# 送信先とトークンは monitoring_suite.tf が作成するストレージから自動で入る。
-# 注意: cloud-init はVM作成時に一度だけ実行されるため、送信先が変わった場合は
-# VMの再作成 (-replace) が必要。
+# トークンを secret.auto.tfvars に設定すると、cloud-init がVM作成時に
+# Collector をインストールし、トレース(OTLP:4318)とnginxアクセスログの
+# 転送をセットアップする。トークン未設定なら何もしない。
+# 注意: cloud-init はVM作成時に一度だけ実行されるため、あとからトークンを
+# 設定・変更した場合はVMの再作成 (taint) が必要。
 
 variable "otel_collector_version" {
   description = "インストールする sacloud-otel-collector のバージョン"
   type        = string
   default     = "0.7.6"
+}
+
+variable "monitoring_metrics_endpoint" {
+  description = "モニタリングスイートのメトリクス送信先ID (例 123456789012)"
+  type        = string
+  default     = ""
+}
+
+variable "monitoring_metrics_token" {
+  description = "モニタリングスイートのメトリクス書き込みトークン (met-*)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "monitoring_traces_endpoint" {
+  description = "モニタリングスイートのトレース送信先ID (例 123456789012)"
+  type        = string
+  default     = ""
+}
+
+variable "monitoring_traces_token" {
+  description = "モニタリングスイートのトレース書き込みトークン (trc-*)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "monitoring_logs_endpoint" {
+  description = "モニタリングスイートのログ送信先ID (例 123456789012)"
+  type        = string
+  default     = ""
+}
+
+variable "monitoring_logs_token" {
+  description = "モニタリングスイートのログ書き込みトークン (log-*)"
+  type        = string
+  default     = ""
+  sensitive   = true
 }
 
 ########################################
